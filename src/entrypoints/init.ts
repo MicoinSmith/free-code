@@ -1,3 +1,4 @@
+import { syncLiteLLMModels } from '../utils/model/liteLLM.js'
 import { profileCheckpoint } from '../utils/startupProfiler.js'
 import '../bootstrap/state.js'
 import '../utils/config.js'
@@ -97,6 +98,9 @@ export const init = memoize(async (): Promise<void> => {
 
     // Record the first start time
     recordFirstStartTime()
+
+    // Sync LiteLLM models in background
+    void syncLiteLLMModels()
 
     // Configure global mTLS settings
     const mtlsStart = Date.now()

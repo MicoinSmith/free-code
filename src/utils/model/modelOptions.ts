@@ -515,12 +515,40 @@ export function getModelOptions(fastMode = false): ModelOption[] {
     })
   }
 
+  // Add custom LiteLLM models
+  if (process.env.USE_LITELLM === 'true') {
+    try {
+      const fs = require('fs');
+      if (fs && fs.readFileSync) {
+        const cacheData = JSON.parse(fs.readFileSync('/Users/srilanka/.free-code/.models_cache.json', 'utf-8'));
+        if (cacheData && cacheData.data) {
+          for (const model of cacheData.data) {
+            const modelId = model.id;
+            if (!options.some(existing => existing.value === modelId)) {
+              options.push({
+                value: modelId,
+                label: `[LiteLLM] ${modelId}`,
+                description: `Dynamic model from LiteLLM`,
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[ModelOptions] Could not load LiteLLM cache, skipping.', e);
+    }
+  }
+
   // Append additional model options fetched during bootstrap
   for (const opt of getGlobalConfig().additionalModelOptionsCache ?? []) {
     if (!options.some(existing => existing.value === opt.value)) {
       options.push(opt)
     }
   }
+
+  // Sort options alphabetically by label (which includes group prefix)
+  options.sort((a, b) => a.label.localeCompare(b.label))
+
 
   // Add custom model from either the current model value or the initial one
   // if it is not already in the options.

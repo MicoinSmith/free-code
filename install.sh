@@ -13,7 +13,7 @@ DIM='\033[2m'
 RESET='\033[0m'
 
 REPO="https://github.com/paoloanzn/free-code.git"
-INSTALL_DIR="$HOME/free-code"
+INSTALL_DIR="$HOME/.free-code"
 BUN_MIN_VERSION="1.3.11"
 
 info()  { printf "${CYAN}[*]${RESET} %s\n" "$*"; }
@@ -155,7 +155,7 @@ check_git
 check_bun
 echo ""
 
-clone_repo
+# clone_repo
 install_deps
 build_binary
 link_binary
