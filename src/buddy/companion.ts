@@ -124,10 +124,30 @@ export function companionUserId(): string {
 // Regenerate bones from userId, merge with stored soul. Bones never persist
 // so species renames and SPECIES-array edits can't break stored companions,
 // and editing config.companion can't fake a rarity.
-export function getCompanion(): Companion | undefined {
+// Pet event — CompanionSprite listens via a DOM-like custom event (Ink uses
+// an emulated DOM under react-terminal, so dispatchEvent works). This avoids
+// threading React setState through non-React code paths like slash commands.
+const PET_EVENT = 'companion:pet'
+export function petCompanion(): void {
+  if (typeof document !== 'undefined') {
+    document.dispatchEvent(new CustomEvent(PET_EVENT))
+  }
+}
+export function onPet(fn: () => void): () => void {
+  const handler = () => fn()
+  if (typeof document !== 'undefined') {
+    document.addEventListener(PET_EVENT, handler)
+    return () => document.removeEventListener(PET_EVENT, handler)
+  }
+  return () => {}
+}
+
+export function getCompanion(seedOverride?: string): Companion | undefined {
   const stored = getGlobalConfig().companion
   if (!stored) return undefined
-  const { bones } = roll(companionUserId())
+  const { bones } = seedOverride
+    ? rollFrom(mulberry32(hashString(seedOverride)))
+    : roll(companionUserId())
   // bones last so stale bones fields in old-format configs get overridden
   return { ...stored, ...bones }
 }
