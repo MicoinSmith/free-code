@@ -12,8 +12,8 @@ BOLD='\033[1m'
 DIM='\033[2m'
 RESET='\033[0m'
 
-REPO="https://github.com/paoloanzn/free-code.git"
-INSTALL_DIR="$HOME/.free-code"
+REPO="git@github.com:MicoinSmith/free-code.git"
+INSTALL_DIR="$HOME/free-code"
 BUN_MIN_VERSION="1.3.11"
 
 info()  { printf "${CYAN}[*]${RESET} %s\n" "$*"; }
@@ -101,19 +101,20 @@ clone_repo() {
     warn "$INSTALL_DIR already exists"
     if [ -d "$INSTALL_DIR/.git" ]; then
       info "Pulling latest changes..."
-      git -C "$INSTALL_DIR" pull --ff-only origin main 2>/dev/null || {
+      git -C "$INSTALL_DIR" pull --ff-only origin cc 2>/dev/null || {
         warn "Pull failed, continuing with existing copy"
       }
     fi
   else
     info "Cloning repository..."
-    git clone --depth 1 "$REPO" "$INSTALL_DIR"
+    git clone --depth 1 --branch cc "$REPO" "$INSTALL_DIR"
   fi
   ok "Source: $INSTALL_DIR"
 }
 
 install_deps() {
   info "Installing dependencies..."
+  mkdir -p "$INSTALL_DIR"
   cd "$INSTALL_DIR"
   bun install --frozen-lockfile 2>/dev/null || bun install
   ok "Dependencies installed"
@@ -155,7 +156,7 @@ check_git
 check_bun
 echo ""
 
-# clone_repo
+clone_repo
 install_deps
 build_binary
 link_binary
