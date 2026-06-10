@@ -1,4 +1,8 @@
 import { writeFileSync } from 'fs';
+import { homedir } from 'os';
+import { join } from 'path';
+
+const CACHE_PATH = join(homedir(), 'free-code', '.models_cache.json');
 
 export async function syncLiteLLMModels(): Promise<void> {
   if (process.env.USE_LITELLM !== 'true') return;
@@ -11,8 +15,7 @@ export async function syncLiteLLMModels(): Promise<void> {
     if (!response.ok) throw new Error(`Failed to fetch models: ${response.statusText}`);
     
     const data = await response.json();
-    // Cache the raw data
-    writeFileSync('/Users/srilanka/.free-code/.models_cache.json', JSON.stringify(data));
+    writeFileSync(CACHE_PATH, JSON.stringify(data));
     console.log('[LiteLLM] Models synced to cache.');
   } catch (e) {
     console.error('[LiteLLM] Failed to sync models', e);
