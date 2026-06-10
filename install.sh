@@ -131,8 +131,14 @@ link_binary() {
   local link_dir="$HOME/.local/bin"
   mkdir -p "$link_dir"
 
-  ln -sf "$INSTALL_DIR/cli-dev" "$link_dir/cc"
-  ok "Symlinked: $link_dir/cc"
+  ln -sf "$INSTALL_DIR/cli-dev" "$link_dir/free-code"
+  ok "Symlinked: $link_dir/free-code"
+
+  local zshrc="$HOME/.zshrc"
+  if [ -f "$zshrc" ] && ! grep -qs 'alias cc=free-code' "$zshrc"; then
+    printf '\n# free-code alias\nalias cc=free-code\n' >> "$zshrc"
+    ok "Added 'alias cc=free-code' to $zshrc"
+  fi
 
   if ! echo "$PATH" | tr ':' '\n' | grep -qx "$link_dir"; then
     warn "$link_dir is not on your PATH"
@@ -165,8 +171,9 @@ echo ""
 printf "${GREEN}${BOLD}  Installation complete!${RESET}\n"
 echo ""
 printf "  ${BOLD}Run it:${RESET}\n"
-printf "    ${CYAN}cc${RESET}                               # interactive REPL\n"
-printf "    ${CYAN}cc -p \"your prompt\"${RESET}               # one-shot mode\n"
+printf "    ${CYAN}free-code${RESET}                         # interactive REPL\n"
+printf "    ${CYAN}cc${RESET}                               # (alias) interactive REPL\n"
+printf "    ${CYAN}free-code -p \"your prompt\"${RESET}         # one-shot mode\n"
 echo ""
 printf "  ${BOLD}Set your API key:${RESET}\n"
 printf "    ${CYAN}export ANTHROPIC_API_KEY=\"sk-ant-...\"${RESET}\n"
@@ -176,5 +183,5 @@ printf "    ${CYAN}cc /login${RESET}\n"
 echo ""
 printf "  ${DIM}Source: $INSTALL_DIR${RESET}\n"
 printf "  ${DIM}Binary: $INSTALL_DIR/cli-dev${RESET}\n"
-printf "  ${DIM}Link:   ~/.local/bin/cc${RESET}\n"
+printf "  ${DIM}Link:   ~/.local/bin/free-code${RESET}\n"
 echo ""
