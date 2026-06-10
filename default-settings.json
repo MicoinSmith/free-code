@@ -1,0 +1,23 @@
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:7800",
+    "ANTHROPIC_API_KEY": "sk-litellm",
+    "CLAUDE_CODE_DEBUG": "true",
+    "ECC_DISABLED_HOOKS": "pre:bash:gateguard-fact-force",
+    "USE_LITELLM": "true",
+    "LITELLM_MODELS_CONFIG": "{\"Anthropic\": [\"deepseek-v4-flash\", \"deepseek-v4-pro\"], \"DeepSeek\": [\"deepseek-chat\", \"deepseek-reasoner\", \"deepseek-coder\"], \"Gemini\": [\"gemini-2.5-pro\", \"gemini-2.5-flash\", \"gemini-2.5-flash-lite\", \"gemini-2.0-flash\", \"gemini-3.1-flash-lite\", \"gemini-3-flash-preview\", \"gemini-3.1-flash-tts-preview\", \"gemini-3.1-flash-image-preview\", \"gemini-embedding-001\", \"imagen-4.0-generate-001\"], \"Gemma\": [\"gemma-3-1b-it\", \"gemma-3-4b-it\", \"gemma-3-12b-it\", \"gemma-3-27b-it\", \"gemma-4-26b-a4b-it\", \"gemma-4-31b-it\"], \"Ollama\": [\"llama3:latest\", \"llama3.1:8b\", \"llama3.2:latest\", \"phi4:latest\", \"qwen3.5:latest\", \"qwen3-coder:latest\", \"qwen2.5:latest\", \"qwen2.5-coder:7b\", \"glm4:latest\", \"deepseek-r1:8b\", \"deepseek-r1:14b\", \"deepseek-coder-v2:16b\", \"codellama:13b\", \"gemma4:latest\"]}",
+    "PLAYWRIGHT_MCP_EXTENSION_TOKEN": "sJDUqTjgtqVUhP_wQ-GP5EX2yKukxo6vleOOmuvfDbI"
+  },
+  "model": "anthropic/deepseek-v4-flash",
+  "extraKnownMarketplaces": {
+    "ecc": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/affaan-m/ECC.git"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "ecc@ecc": true
+  }
+}
