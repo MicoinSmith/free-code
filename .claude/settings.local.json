@@ -1,0 +1,5 @@
+{
+  "env": {
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "anthropic/deepseek-chat"
+  }
+}
