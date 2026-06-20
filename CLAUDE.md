@@ -48,4 +48,4 @@ Run the built binary with `./cli` or `./cli-dev`. Set `ANTHROPIC_API_KEY` in the
 
 ## Coding rules (on-demand)
 
-ECC coding rules at `~/.claude/rules/ecc-all/`. Read relevant files when a task needs specific guidance.
+ECC coding rules at `~/.claude/rules-all/ecc/`. Read relevant files when a task needs specific guidance.
