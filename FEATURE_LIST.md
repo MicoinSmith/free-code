@@ -4,7 +4,7 @@
 
 ---
 
-## 待添加功能（按优先级排列）
+## 已完成功能
 
 ### P2 — 高价值但工作量大
 
@@ -23,21 +23,26 @@
 
 ---
 
-#### 2. Dynamic Workflows
+#### 2. Dynamic Workflows ✅
 
-**说明**: Claude 自动编排多 agent 工作流处理超大任务（数十到上百个并行子 agent）。
+**说明**: Claude 自动编排多 agent 工作流处理超大任务（DAG 并行执行）。
 
-**当前状态**: ⚠️ 已有 `AgentTool` 和子 agent 能力，但缺少大规模编排层。
+**完成内容**:
+- `WorkflowTool` — 新工具，接受 DAG 步骤定义
+- 拓扑排序 + 循环检测 (`src/tools/WorkflowTool/scheduler.ts`)
+- 并行 step 执行：每轮就绪步骤通过 `all()` + `runAgent()` 并行扇出
+- 依赖结果自动注入：下游步骤的 prompt 自动包含上游结果 XML
+- 错误处理：step 失败自动跳过下游，返回 `partial` 状态
+- 验证结果通过 Zod schema + `buildTool()`
+- 无 feature flag 依赖，始终可用
 
-**工作量**: 大
-- 设计工作流定义 DSL
-- 子 agent 协调/结果聚合
-- 中断恢复
-- 进度报告
+**核心文件**:
+- `src/tools/WorkflowTool/types.ts` — 类型定义
+- `src/tools/WorkflowTool/scheduler.ts` — DAG 调度器
+- `src/tools/WorkflowTool/WorkflowTool.tsx` — 工具实现
+- `src/tools.ts` — 工具注册
 
 ---
-
-## 已完成功能
 
 ### P0 — 快速见效
 
@@ -158,10 +163,10 @@
 
 ```
 待开始:
-  ├── Dynamic Workflows
   └── Artifacts
 
-已完成 (P0 + P1 — 全部完成):
+已完成 (P0 + P1 + P2):
+  ├── Dynamic Workflows (new: WorkflowTool DAG)
   ├── --safe-mode
   ├── /cd 命令
   ├── Parallel tool resilience
