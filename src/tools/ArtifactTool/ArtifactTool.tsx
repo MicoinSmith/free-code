@@ -173,6 +173,18 @@ that the user can view in their browser via the local HTTP server.`
     return true
   },
 
+  mapToolResultToToolResultBlockParam(
+    content: { status: string; message: string; url?: string },
+    toolUseID: string,
+  ) {
+    const url = content.url ? ` (${content.url})` : ''
+    return {
+      tool_use_id: toolUseID,
+      type: 'tool_result' as const,
+      content: `[Artifact ${content.status}] ${content.message}${url}`,
+    }
+  },
+
   userFacingName(input: Partial<Record<string, unknown>> | undefined): string {
     const action = (input?.action as string) || 'use'
     return `Artifact (${action})`

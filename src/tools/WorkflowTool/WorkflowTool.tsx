@@ -293,6 +293,13 @@ Steps with no dependencies run in parallel. A step waits for all its dependencie
   isEnabled() {
     return true
   },
+  mapToolResultToToolResultBlockParam(
+    content: { status: string; summary: string; stepResults: WorkflowStepResult[]; failedSteps: string[] },
+    toolUseID: string,
+  ) {
+    const text = `[Workflow ${content.status}]\n${content.summary}`
+    return { tool_use_id: toolUseID, type: 'tool_result' as const, content: text }
+  },
   async call(
     { steps, maxConcurrency }: { steps: WorkflowStepDef[]; maxConcurrency: number },
     context: ToolUseContext,
