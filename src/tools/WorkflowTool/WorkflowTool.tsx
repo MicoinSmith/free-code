@@ -360,6 +360,29 @@ Steps with no dependencies run in parallel. A step waits for all its dependencie
     const skipSet = new Set<string>()
 
     while (allStepResults.size < steps.length) {
+      // Check for user abort (Esc) between batches
+      if (context.abortController.signal.aborted) {
+        for (const step of steps) {
+          if (!allStepResults.has(step.id)) {
+            allStepResults.set(step.id, {
+              id: step.id,
+              status: 'skipped' as const,
+              summary: 'Cancelled by user',
+            })
+          }
+        }
+        // Update progress to show cancelled state
+        if (context.setToolJSX) {
+          context.setToolJSX({
+            jsx: renderProgressTable(steps, allStepResults, inProgress),
+            shouldHidePromptInput: false,
+            showSpinner: true,
+            shouldContinueAnimation: true,
+          })
+        }
+        break
+      }
+
       const ready = getReadySteps(steps, new Set(allStepResults.keys()), inProgress)
 
       if (ready.length === 0 && inProgress.size === 0) {
