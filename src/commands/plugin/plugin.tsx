@@ -1,7 +1,102 @@
-import * as React from 'react';
-import type { LocalJSXCommandOnDone } from '../../types/command.js';
-import { PluginSettings } from './PluginSettings.js';
-export async function call(onDone: LocalJSXCommandOnDone, _context: unknown, args?: string): Promise<React.ReactNode> {
-  return <PluginSettings onComplete={onDone} args={args} />;
+import * as React from 'react'
+import { Text } from '../../ink.js'
+import type { LocalJSXCommandOnDone } from '../../types/command.js'
+import { PluginSettings } from './PluginSettings.js'
+import { parsePluginArgs } from './parseArgs.js'
+import { loadAllPlugins } from '../../utils/plugins/pluginLoader.js'
+
+export async function call(
+  onDone: LocalJSXCommandOnDone,
+  _context: unknown,
+  args?: string,
+): Promise<React.ReactNode> {
+  const parsed = parsePluginArgs(args)
+
+  // Handle /plugin list [--enabled|--disabled] inline
+  if (parsed.type === 'list') {
+    return <PluginList onDone={onDone} filter={parsed.filter} />
+  }
+
+  return <PluginSettings onComplete={onDone} args={args} />
 }
-//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJSZWFjdCIsIkxvY2FsSlNYQ29tbWFuZE9uRG9uZSIsIlBsdWdpblNldHRpbmdzIiwiY2FsbCIsIm9uRG9uZSIsIl9jb250ZXh0IiwiYXJncyIsIlByb21pc2UiLCJSZWFjdE5vZGUiXSwic291cmNlcyI6WyJwbHVnaW4udHN4Il0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCAqIGFzIFJlYWN0IGZyb20gJ3JlYWN0J1xuaW1wb3J0IHR5cGUgeyBMb2NhbEpTWENvbW1hbmRPbkRvbmUgfSBmcm9tICcuLi8uLi90eXBlcy9jb21tYW5kLmpzJ1xuaW1wb3J0IHsgUGx1Z2luU2V0dGluZ3MgfSBmcm9tICcuL1BsdWdpblNldHRpbmdzLmpzJ1xuXG5leHBvcnQgYXN5bmMgZnVuY3Rpb24gY2FsbChcbiAgb25Eb25lOiBMb2NhbEpTWENvbW1hbmRPbkRvbmUsXG4gIF9jb250ZXh0OiB1bmtub3duLFxuICBhcmdzPzogc3RyaW5nLFxuKTogUHJvbWlzZTxSZWFjdC5SZWFjdE5vZGU+IHtcbiAgcmV0dXJuIDxQbHVnaW5TZXR0aW5ncyBvbkNvbXBsZXRlPXtvbkRvbmV9IGFyZ3M9e2FyZ3N9IC8+XG59XG4iXSwibWFwcGluZ3MiOiJBQUFBLE9BQU8sS0FBS0EsS0FBSyxNQUFNLE9BQU87QUFDOUIsY0FBY0MscUJBQXFCLFFBQVEsd0JBQXdCO0FBQ25FLFNBQVNDLGNBQWMsUUFBUSxxQkFBcUI7QUFFcEQsT0FBTyxlQUFlQyxJQUFJQSxDQUN4QkMsTUFBTSxFQUFFSCxxQkFBcUIsRUFDN0JJLFFBQVEsRUFBRSxPQUFPLEVBQ2pCQyxJQUFhLENBQVIsRUFBRSxNQUFNLENBQ2QsRUFBRUMsT0FBTyxDQUFDUCxLQUFLLENBQUNRLFNBQVMsQ0FBQyxDQUFDO0VBQzFCLE9BQU8sQ0FBQyxjQUFjLENBQUMsVUFBVSxDQUFDLENBQUNKLE1BQU0sQ0FBQyxDQUFDLElBQUksQ0FBQyxDQUFDRSxJQUFJLENBQUMsR0FBRztBQUMzRCIsImlnbm9yZUxpc3QiOltdfQ==
+
+type PluginInfo = {
+  name: string
+  enabled: boolean
+  source: string
+}
+
+function PluginList({
+  onDone,
+  filter,
+}: {
+  onDone: LocalJSXCommandOnDone
+  filter?: 'enabled' | 'disabled'
+}): React.ReactNode {
+  const [plugins, setPlugins] = React.useState<PluginInfo[] | null>(null)
+  const [error, setError] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    loadAllPlugins()
+      .then((result) => {
+        let list: PluginInfo[] = result.enabled.map((p) => ({
+          name: p.name,
+          enabled: true,
+          source: p.source,
+        }))
+          .concat(
+            result.disabled.map((p) => ({
+              name: p.name,
+              enabled: false,
+              source: p.source,
+            })),
+          )
+          .sort((a, b) => a.name.localeCompare(b.name))
+
+        if (filter === 'enabled') {
+          list = list.filter((p) => p.enabled)
+        } else if (filter === 'disabled') {
+          list = list.filter((p) => !p.enabled)
+        }
+
+        setPlugins(list)
+      })
+      .catch((err: Error) => {
+        setError(err.message)
+      })
+  }, [filter])
+
+  if (error) {
+    return <Text>Error loading plugins: {error}</Text>
+  }
+
+  if (!plugins) {
+    return <Text>Loading plugins...</Text>
+  }
+
+  if (plugins.length === 0) {
+    const msg =
+      filter === 'enabled'
+        ? 'No enabled plugins.'
+        : filter === 'disabled'
+          ? 'No disabled plugins.'
+          : 'No plugins installed.'
+    return <Text>{msg}</Text>
+  }
+
+  return (
+    <Text>
+      <Text bold>
+        Plugins ({plugins.length}
+        {filter ? `, ${filter}` : ''}):
+      </Text>
+      {'\n'}
+      {plugins.map((p) => (
+        <Text key={p.name}>
+          {'\n'}  {p.enabled ? '✓' : '○'} {p.name}
+          <Text dimColor> ({p.source})</Text>
+        </Text>
+      ))}
+    </Text>
+  )
+}

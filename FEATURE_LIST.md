@@ -6,22 +6,9 @@
 
 ## 待添加功能（按优先级排列）
 
-### P1 — 中等价值、有一定工作量
-
-#### 1. `/plugin list --enabled/--disabled` 过滤
-
-**说明**: 列出已安装插件，支持按启用状态过滤。
-
-**当前状态**: ⚠️ 已有 `plugin` 命令系统，缺少 `list` 子命令的过滤参数。
-
-**工作量**: 小
-- 扩展 `plugin list` 命令参数
-
----
-
 ### P2 — 高价值但工作量大
 
-#### 2. Artifacts
+#### 1. Artifacts
 
 **说明**: 将工作会话变成实时交互式网页（PR 审查看板、系统架构图等）。依赖 Claude API Artifacts 功能。
 
@@ -36,7 +23,7 @@
 
 ---
 
-#### 3. Dynamic Workflows
+#### 2. Dynamic Workflows
 
 **说明**: Claude 自动编排多 agent 工作流处理超大任务（数十到上百个并行子 agent）。
 
@@ -137,6 +124,21 @@
 
 ---
 
+#### 7. `/plugin list --enabled/--disabled` 过滤
+
+**说明**: 列出已安装插件，支持按启用状态过滤。
+
+**完成内容**:
+- `parseArgs.ts` 添加 `list` 子命令，支持 `--enabled` (`-e`) / `--disabled` (`-d`) 标志
+- `plugin.tsx` 新增 `PluginList` 组件，直接渲染文本列表
+- 不经过 PluginSettings/ManagePlugins 等复杂组件，保持简洁
+
+**核心文件**:
+- `src/commands/plugin/parseArgs.ts` — 命令解析
+- `src/commands/plugin/plugin.tsx` — 列表渲染
+
+---
+
 ### 已存在的上游功能
 
 | 功能 | 备注 |
@@ -156,17 +158,17 @@
 
 ```
 待开始:
-  ├── /plugin list 过滤
   ├── Dynamic Workflows
   └── Artifacts
 
-已完成 (Phase 1):
+已完成 (P0 + P1 — 全部完成):
   ├── --safe-mode
   ├── /cd 命令
   ├── Parallel tool resilience
   ├── Auto mode 中文提示词
   ├── /goal 命令
-  └── AcceptEdits 加固
+  ├── AcceptEdits 加固
+  └── /plugin list --enabled/--disabled 过滤
 ```
 
 > 注：Claude Fable 5 / Mythos-class 是模型本身，不需要移植——通过 LiteLLM 配置模型名即可使用。
