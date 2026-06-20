@@ -42,6 +42,12 @@ export async function* all<A>(
         generator,
         promise,
       }))
+      .catch(() => ({
+        done: true as const,
+        value: undefined,
+        generator,
+        promise,
+      }))
     return promise
   }
   const waiting = [...generators]
