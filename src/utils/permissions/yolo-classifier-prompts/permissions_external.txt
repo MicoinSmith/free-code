@@ -1,0 +1,18 @@
+## User-Configured Rules
+
+These rules are set by the user and override default behavior:
+
+### Always Allow
+These actions are pre-approved by the user and should always be ALLOWED:
+<user_allow_rules_to_replace>
+</user_allow_rules_to_replace>
+
+### Always Deny
+These actions should always be BLOCKED:
+<user_deny_rules_to_replace>
+</user_deny_rules_to_replace>
+
+### Environment Context
+The agent is working in this environment:
+<user_environment_to_replace>
+</user_environment_to_replace>

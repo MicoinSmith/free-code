@@ -97,6 +97,16 @@ install_bun() {
 # -------------------------------------------------------------------
 
 clone_repo() {
+  # Detect running from a local clone: if install.sh lives in a git repo
+  local script_dir
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd 2>/dev/null || echo "")"
+  if [ -n "$script_dir" ] && [ -d "$script_dir/.git" ]; then
+    INSTALL_DIR="$script_dir"
+    info "Running install from local clone — using source at $INSTALL_DIR"
+    ok "Source: $INSTALL_DIR"
+    return
+  fi
+
   if [ -d "$INSTALL_DIR" ]; then
     warn "$INSTALL_DIR already exists"
     if [ -d "$INSTALL_DIR/.git" ]; then

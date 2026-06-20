@@ -53,11 +53,11 @@ export function getNextPermissionMode(
       return 'plan'
 
     case 'plan':
-      if (toolPermissionContext.isBypassPermissionsModeAvailable) {
-        return 'bypassPermissions'
-      }
       if (canCycleToAuto(toolPermissionContext)) {
         return 'auto'
+      }
+      if (toolPermissionContext.isBypassPermissionsModeAvailable) {
+        return 'bypassPermissions'
       }
       return 'default'
 
