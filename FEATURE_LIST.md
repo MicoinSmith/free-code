@@ -8,19 +8,7 @@
 
 ### P1 — 中等价值、有一定工作量
 
-#### 1. AcceptEdits 模式加固
-
-**说明**: 写入 `.npmrc`、`.bazelrc` 等构建工具配置前弹窗确认。
-
-**当前状态**: ❌ 不存在。
-
-**工作量**: 中
-- 定义敏感构建工具配置文件列表
-- 在 acceptEdits mode 下添加额外检查
-
----
-
-#### 2. `/plugin list --enabled/--disabled` 过滤
+#### 1. `/plugin list --enabled/--disabled` 过滤
 
 **说明**: 列出已安装插件，支持按启用状态过滤。
 
@@ -33,7 +21,7 @@
 
 ### P2 — 高价值但工作量大
 
-#### 3. Artifacts
+#### 2. Artifacts
 
 **说明**: 将工作会话变成实时交互式网页（PR 审查看板、系统架构图等）。依赖 Claude API Artifacts 功能。
 
@@ -48,7 +36,7 @@
 
 ---
 
-#### 4. Dynamic Workflows
+#### 3. Dynamic Workflows
 
 **说明**: Claude 自动编排多 agent 工作流处理超大任务（数十到上百个并行子 agent）。
 
@@ -135,6 +123,20 @@
 
 ---
 
+#### 6. AcceptEdits 模式加固
+
+**说明**: 写入 `.npmrc`、`.bazelrc` 等构建工具配置前弹窗确认。
+
+**完成内容**:
+- 将 `.npmrc`、`.bazelrc`、`.yarnrc`、`.yarnrc.yml` 加入 `DANGEROUS_FILES` 名单
+- 安全检查（`checkPathSafetyForAutoEdit`）在 AcceptEdits 自动放行前执行，确保这些文件始终弹窗确认
+- 所有权限模式（包括 AcceptEdits）均受影响
+
+**核心文件修改**:
+- `src/utils/permissions/filesystem.ts` — `DANGEROUS_FILES` 列表
+
+---
+
 ### 已存在的上游功能
 
 | 功能 | 备注 |
@@ -154,7 +156,6 @@
 
 ```
 待开始:
-  ├── AcceptEdits 加固
   ├── /plugin list 过滤
   ├── Dynamic Workflows
   └── Artifacts
@@ -164,7 +165,8 @@
   ├── /cd 命令
   ├── Parallel tool resilience
   ├── Auto mode 中文提示词
-  └── /goal 命令
+  ├── /goal 命令
+  └── AcceptEdits 加固
 ```
 
 > 注：Claude Fable 5 / Mythos-class 是模型本身，不需要移植——通过 LiteLLM 配置模型名即可使用。
