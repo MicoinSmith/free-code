@@ -8,18 +8,25 @@
 
 ### P2 — 高价值但工作量大
 
-#### 1. Artifacts
+#### 1. Artifacts ✅
 
-**说明**: 将工作会话变成实时交互式网页（PR 审查看板、系统架构图等）。依赖 Claude API Artifacts 功能。
+**说明**: 将工作会话变成实时交互式网页（PR 审查看板、系统架构图等）。通过本地 HTTP 服务 + CSP 安全内联资源。
 
-**当前状态**: ❌ 完全不存在。
+**完成内容**:
+- `ArtifactTool` — 新工具，支持 create/update/list/delete/open 操作
+- 四种类型：html、svg、chart、markdown
+- 本地 HTTP 服务器（动态端口 9000-9999），自动启动
+- CSP 安全头 + CORS 支持
+- 自动版本管理（每次 update 递增版本号）
+- 终端预览 + 点击 OSC 8 URL 在浏览器打开
+- 每会话最多 50 个 artifact
+- 无外部依赖，使用 Node.js 内置 http 模块
 
-**工作量**: 大
-- 需要构建 HTML 模板系统
-- 内联资源（CSP 安全）
-- 版本管理
-- 分享机制（本地文件 + HTTP 服务）
-- 不需要上游的 Claude API Artifacts 端点，可用本地静态文件替代
+**核心文件**:
+- `src/tools/ArtifactTool/ArtifactTool.tsx` — 工具实现
+- `src/tools/ArtifactTool/types.ts` — 类型定义
+- `src/tools/ArtifactTool/constants.ts` — 常量、CSP 配置
+- `src/tools/ArtifactTool/server.ts` — HTTP 服务器
 
 ---
 
@@ -162,11 +169,9 @@
 ## 开发路线图
 
 ```
-待开始:
-  └── Artifacts
-
-已完成 (P0 + P1 + P2):
-  ├── Dynamic Workflows (new: WorkflowTool DAG)
+全部完成（P0 + P1 + P2 — 100%）:
+  ├── Dynamic Workflows (WorkflowTool DAG)
+  ├── Artifacts (ArtifactTool + HTTP server)
   ├── --safe-mode
   ├── /cd 命令
   ├── Parallel tool resilience
