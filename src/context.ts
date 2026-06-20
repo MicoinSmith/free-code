@@ -10,6 +10,7 @@ import {
   getClaudeMds,
   getMemoryFiles,
 } from './utils/claudemd.js'
+import { getGlobalConfig } from './utils/config.js'
 import { logForDiagnosticsNoPII } from './utils/diagLogs.js'
 import { isBareMode, isEnvTruthy } from './utils/envUtils.js'
 import { execFileNoThrow } from './utils/execFileNoThrow.js'
@@ -31,6 +32,11 @@ export function setSystemPromptInjection(value: string | null): void {
   // Clear context caches immediately when injection changes
   getUserContext.cache.clear?.()
   getSystemContext.cache.clear?.()
+}
+
+/** Clear memoized user context cache so next turn picks up fresh data (e.g., goals). */
+export function clearUserContextCache(): void {
+  getUserContext.cache.clear?.()
 }
 
 export const getGitStatus = memoize(async (): Promise<string | null> => {
@@ -181,8 +187,13 @@ export const getUserContext = memoize(
       claudemd_disabled: Boolean(shouldDisableClaudeMd),
     })
 
+    // Read long-term goals from config for injection into system context
+    const config = getGlobalConfig()
+    const goals = config.goals
+
     return {
       ...(claudeMd && { claudeMd }),
+      ...(goals && goals.length > 0 && { goals: goals.join('\n') }),
       currentDate: `Today's date is ${getLocalISODate()}.`,
     }
   },

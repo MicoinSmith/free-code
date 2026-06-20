@@ -1,0 +1,21 @@
+{
+  "env": {
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "anthropic/deepseek-chat"
+  },
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:127.0.0.1)",
+      "Bash(docker ps:*)",
+      "Bash(docker exec:*)",
+      "Bash(chmod +x:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(gh api:*)",
+      "Bash(python3 -c \"import sys,json,base64; d=json.load\\(sys.stdin\\); print\\(base64.b64decode\\(d[''content'']\\).decode\\(\\)\\)\")",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(bun run:*)"
+    ]
+  }
+}

@@ -52,7 +52,8 @@ declare const MACRO: { VERSION: string }
 
 /**
  * Dangerous files that should be protected from auto-editing.
- * These files can be used for code execution or data exfiltration.
+ * These files can be used for code execution, data exfiltration,
+ * or contain build/package manager credentials.
  */
 export const DANGEROUS_FILES = [
   '.gitconfig',
@@ -65,6 +66,11 @@ export const DANGEROUS_FILES = [
   '.ripgreprc',
   '.mcp.json',
   '.claude.json',
+  // Build tool config files — can contain auth tokens or define build behavior
+  '.npmrc',
+  '.bazelrc',
+  '.yarnrc',
+  '.yarnrc.yml',
 ] as const
 
 /**

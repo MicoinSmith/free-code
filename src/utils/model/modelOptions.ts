@@ -6,6 +6,8 @@ import {
   isMaxSubscriber,
   isTeamPremiumSubscriber,
 } from '../auth.js'
+import { homedir } from 'os'
+import { join } from 'path'
 import { getModelStrings } from './modelStrings.js'
 import {
   COST_TIER_3_15,
@@ -520,7 +522,7 @@ export function getModelOptions(fastMode = false): ModelOption[] {
     try {
       const fs = require('fs');
       if (fs && fs.readFileSync) {
-        const cacheData = JSON.parse(fs.readFileSync('/Users/srilanka/.free-code/.models_cache.json', 'utf-8'));
+        const cacheData = JSON.parse(fs.readFileSync(join(homedir(), 'free-code', '.models_cache.json'), 'utf-8'));
         if (cacheData && cacheData.data) {
           for (const model of cacheData.data) {
             const modelId = model.id;

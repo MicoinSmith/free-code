@@ -3,7 +3,8 @@ export type ParsedCommand =
   | { type: 'menu' }
   | { type: 'help' }
   | { type: 'install'; marketplace?: string; plugin?: string }
-  | { type: 'manage' }
+  | { type: 'manage'; filter?: 'enabled' | 'disabled' }
+  | { type: 'list'; filter?: 'enabled' | 'disabled' }
   | { type: 'uninstall'; plugin?: string }
   | { type: 'enable'; plugin?: string }
   | { type: 'disable'; plugin?: string }
@@ -13,6 +14,14 @@ export type ParsedCommand =
       action?: 'add' | 'remove' | 'update' | 'list'
       target?: string
     }
+
+function parseEnabledDisabledFlag(
+  flag?: string,
+): 'enabled' | 'disabled' | undefined {
+  if (flag === '--enabled' || flag === '-e') return 'enabled'
+  if (flag === '--disabled' || flag === '-d') return 'disabled'
+  return undefined
+}
 
 export function parsePluginArgs(args?: string): ParsedCommand {
   if (!args) {
@@ -58,8 +67,15 @@ export function parsePluginArgs(args?: string): ParsedCommand {
       return { type: 'install', plugin: target }
     }
 
-    case 'manage':
-      return { type: 'manage' }
+    case 'manage': {
+      const manageFilter = parseEnabledDisabledFlag(parts[1])
+      return { type: 'manage', filter: manageFilter }
+    }
+
+    case 'list': {
+      const listFilter = parseEnabledDisabledFlag(parts[1])
+      return { type: 'list', filter: listFilter }
+    }
 
     case 'uninstall':
       return { type: 'uninstall', plugin: parts[1] }

@@ -1,0 +1,22 @@
+## User-Configured Rules / 用户配置规则
+
+These rules are set by the user and override default behavior:
+以下规则由用户设置，会覆盖默认行为：
+
+### Always Allow / 始终允许
+These actions are pre-approved by the user and should always be ALLOWED:
+以下操作已由用户预先批准，应始终允许：
+<user_allow_rules_to_replace>
+</user_allow_rules_to_replace>
+
+### Always Deny / 始终拒绝
+These actions should always be BLOCKED:
+以下操作应始终被阻止：
+<user_deny_rules_to_replace>
+</user_deny_rules_to_replace>
+
+### Environment Context / 环境上下文
+The agent is working in this environment:
+代理当前工作环境如下：
+<user_environment_to_replace>
+</user_environment_to_replace>

@@ -12,8 +12,8 @@ BOLD='\033[1m'
 DIM='\033[2m'
 RESET='\033[0m'
 
-REPO="https://github.com/paoloanzn/free-code.git"
-INSTALL_DIR="$HOME/.free-code"
+REPO="git@github.com:MicoinSmith/free-code.git"
+INSTALL_DIR="$HOME/free-code"
 BUN_MIN_VERSION="1.3.11"
 
 info()  { printf "${CYAN}[*]${RESET} %s\n" "$*"; }
@@ -97,23 +97,34 @@ install_bun() {
 # -------------------------------------------------------------------
 
 clone_repo() {
+  # Detect running from a local clone: if install.sh lives in a git repo
+  local script_dir
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd 2>/dev/null || echo "")"
+  if [ -n "$script_dir" ] && [ -d "$script_dir/.git" ]; then
+    INSTALL_DIR="$script_dir"
+    info "Running install from local clone — using source at $INSTALL_DIR"
+    ok "Source: $INSTALL_DIR"
+    return
+  fi
+
   if [ -d "$INSTALL_DIR" ]; then
     warn "$INSTALL_DIR already exists"
     if [ -d "$INSTALL_DIR/.git" ]; then
       info "Pulling latest changes..."
-      git -C "$INSTALL_DIR" pull --ff-only origin main 2>/dev/null || {
+      git -C "$INSTALL_DIR" pull --ff-only origin cc 2>/dev/null || {
         warn "Pull failed, continuing with existing copy"
       }
     fi
   else
     info "Cloning repository..."
-    git clone --depth 1 "$REPO" "$INSTALL_DIR"
+    git clone --depth 1 --branch cc "$REPO" "$INSTALL_DIR"
   fi
   ok "Source: $INSTALL_DIR"
 }
 
 install_deps() {
   info "Installing dependencies..."
+  mkdir -p "$INSTALL_DIR"
   cd "$INSTALL_DIR"
   bun install --frozen-lockfile 2>/dev/null || bun install
   ok "Dependencies installed"
@@ -133,12 +144,30 @@ link_binary() {
   ln -sf "$INSTALL_DIR/cli-dev" "$link_dir/free-code"
   ok "Symlinked: $link_dir/free-code"
 
+  local zshrc="$HOME/.zshrc"
+  if [ -f "$zshrc" ] && ! grep -qs 'alias cc=free-code' "$zshrc"; then
+    printf '\n# free-code alias\nalias cc=free-code\n' >> "$zshrc"
+    ok "Added 'alias cc=free-code' to $zshrc"
+  fi
+
   if ! echo "$PATH" | tr ':' '\n' | grep -qx "$link_dir"; then
     warn "$link_dir is not on your PATH"
     echo ""
     printf "${YELLOW}  Add this to your shell profile (~/.bashrc, ~/.zshrc, etc.):${RESET}\n"
     printf "${BOLD}    export PATH=\"\$HOME/.local/bin:\$PATH\"${RESET}\n"
     echo ""
+  fi
+}
+
+setup_settings() {
+  local claude_dir="$HOME/.claude"
+  mkdir -p "$claude_dir"
+
+  if [ ! -f "$claude_dir/settings.json" ] && [ -f "$INSTALL_DIR/default-settings.json" ]; then
+    cp "$INSTALL_DIR/default-settings.json" "$claude_dir/settings.json"
+    ok "Created $claude_dir/settings.json from default template"
+  elif [ -f "$claude_dir/settings.json" ]; then
+    info "$claude_dir/settings.json already exists, skipping"
   fi
 }
 
@@ -155,23 +184,25 @@ check_git
 check_bun
 echo ""
 
-# clone_repo
+clone_repo
 install_deps
 build_binary
 link_binary
+setup_settings
 
 echo ""
 printf "${GREEN}${BOLD}  Installation complete!${RESET}\n"
 echo ""
 printf "  ${BOLD}Run it:${RESET}\n"
-printf "    ${CYAN}free-code${RESET}                          # interactive REPL\n"
-printf "    ${CYAN}free-code -p \"your prompt\"${RESET}          # one-shot mode\n"
+printf "    ${CYAN}free-code${RESET}                         # interactive REPL\n"
+printf "    ${CYAN}cc${RESET}                               # (alias) interactive REPL\n"
+printf "    ${CYAN}free-code -p \"your prompt\"${RESET}         # one-shot mode\n"
 echo ""
-printf "  ${BOLD}Set your API key:${RESET}\n"
+printf "  ${BOLD}Settings:${RESET}\n"
+printf "    ${DIM}~/.claude/settings.json${RESET}\n"
+echo ""
+printf "  ${BOLD}Set your API key (if not using settings):${RESET}\n"
 printf "    ${CYAN}export ANTHROPIC_API_KEY=\"sk-ant-...\"${RESET}\n"
-echo ""
-printf "  ${BOLD}Or log in with Claude.ai:${RESET}\n"
-printf "    ${CYAN}free-code /login${RESET}\n"
 echo ""
 printf "  ${DIM}Source: $INSTALL_DIR${RESET}\n"
 printf "  ${DIM}Binary: $INSTALL_DIR/cli-dev${RESET}\n"

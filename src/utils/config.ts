@@ -595,6 +595,10 @@ export type GlobalConfig = {
     scopes?: string[]
     expires_at?: number
   }
+
+  // Long-term goals set via /goal command. Injected into the system prompt
+  // every turn so the model remembers what the user is working toward.
+  goals?: string[]
 }
 
 /**
@@ -683,6 +687,7 @@ export const GLOBAL_CONFIG_KEYS = [
   'prStatusFooterEnabled',
   'remoteControlAtStartup',
   'remoteDialogSeen',
+  'goals',
 ] as const
 
 export type GlobalConfigKey = (typeof GLOBAL_CONFIG_KEYS)[number]
