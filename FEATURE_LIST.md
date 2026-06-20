@@ -8,20 +8,7 @@
 
 ### P1 — 中等价值、有一定工作量
 
-#### 1. `/goal` 命令
-
-**说明**: 设定长期目标，Claude 主动推进。
-
-**当前状态**: ❌ 不存在。
-
-**工作量**: 中
-- 设计 goal 数据结构和持久化
-- 注册命令
-- 在系统提示词中注入目标上下文
-
----
-
-#### 2. AcceptEdits 模式加固
+#### 1. AcceptEdits 模式加固
 
 **说明**: 写入 `.npmrc`、`.bazelrc` 等构建工具配置前弹窗确认。
 
@@ -33,7 +20,7 @@
 
 ---
 
-#### 3. `/plugin list --enabled/--disabled` 过滤
+#### 2. `/plugin list --enabled/--disabled` 过滤
 
 **说明**: 列出已安装插件，支持按启用状态过滤。
 
@@ -46,7 +33,7 @@
 
 ### P2 — 高价值但工作量大
 
-#### 4. Artifacts
+#### 3. Artifacts
 
 **说明**: 将工作会话变成实时交互式网页（PR 审查看板、系统架构图等）。依赖 Claude API Artifacts 功能。
 
@@ -61,7 +48,7 @@
 
 ---
 
-#### 5. Dynamic Workflows
+#### 4. Dynamic Workflows
 
 **说明**: Claude 自动编排多 agent 工作流处理超大任务（数十到上百个并行子 agent）。
 
@@ -130,6 +117,24 @@
 
 ---
 
+#### 5. `/goal` 命令
+
+**说明**: 设定长期目标，Claude 主动推进。
+
+**完成内容**:
+- 支持 `add <text>`、`list`、`remove <n>`、`clear` 子命令，裸文本自动视为添加
+- 持久化到 GlobalConfig (`~/.claude.json`)
+- 每轮对话自动注入到 system prompt（通过 `clearUserContextCache()` 保证即时刷新）
+- React Ink 组件渲染结果
+
+**核心文件**:
+- `src/commands/goal/index.ts` — 命令注册
+- `src/commands/goal/goal.tsx` — 命令实现
+- `src/utils/config.ts` — `goals` 字段
+- `src/context.ts` — 注入系统上下文
+
+---
+
 ### 已存在的上游功能
 
 | 功能 | 备注 |
@@ -149,7 +154,6 @@
 
 ```
 待开始:
-  ├── /goal 命令
   ├── AcceptEdits 加固
   ├── /plugin list 过滤
   ├── Dynamic Workflows
@@ -159,7 +163,8 @@
   ├── --safe-mode
   ├── /cd 命令
   ├── Parallel tool resilience
-  └── Auto mode 中文提示词
+  ├── Auto mode 中文提示词
+  └── /goal 命令
 ```
 
 > 注：Claude Fable 5 / Mythos-class 是模型本身，不需要移植——通过 LiteLLM 配置模型名即可使用。
