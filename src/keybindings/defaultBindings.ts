@@ -40,7 +40,10 @@ export const DEFAULT_BINDINGS: KeybindingBlock[] = [
       'ctrl+c': 'app:interrupt',
       'ctrl+d': 'app:exit',
       'ctrl+l': 'app:redraw',
-      'ctrl+t': 'app:toggleTodos',
+      // Todos moved off ctrl+t so Chat can claim ctrl+t for thinking (Option+T
+      // is unusable under iTerm2's default Option handling). ctrl+x is the
+      // established chord prefix here — see chat:killAgents below.
+      'ctrl+x ctrl+t': 'app:toggleTodos',
       'ctrl+o': 'app:toggleTranscript',
       ...(feature('KAIROS') || feature('KAIROS_BRIEF')
         ? { 'ctrl+shift+b': 'app:toggleBrief' as const }
@@ -69,7 +72,11 @@ export const DEFAULT_BINDINGS: KeybindingBlock[] = [
       [MODE_CYCLE_KEY]: 'chat:cycleMode',
       'meta+p': 'chat:modelPicker',
       'meta+o': 'chat:fastMode',
+      // meta+t (Option+T) is kept for terminals where Option = Meta (and for
+      // kitty-protocol ones). ctrl+t is the fallback that actually reaches the
+      // pty on iTerm2 with Option="Normal".
       'meta+t': 'chat:thinkingToggle',
+      'ctrl+t': 'chat:thinkingToggle',
       enter: 'chat:submit',
       up: 'history:previous',
       down: 'history:next',
