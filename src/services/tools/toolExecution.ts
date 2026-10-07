@@ -60,6 +60,7 @@ import type {
 import { count } from '../../utils/array.js'
 import { createAttachmentMessage } from '../../utils/attachments.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { resyncWritableFileStateAfterHooks } from '../../utils/fileStateResync.js'
 import {
   AbortError,
   errorMessage,
@@ -1534,6 +1535,19 @@ async function checkPermissionsAndCallTool(
       logForDebugging(
         `Slow PostToolUse hooks: ${postToolHookDurationMs}ms for ${tool.name} (${postToolHookInfos.length} hooks)`,
         { level: 'info' },
+      )
+    }
+
+    // A PostToolUse formatter hook may have rewritten the file this tool just
+    // wrote, leaving readFileState stale (it still holds the pre-hook content)
+    // and making the NEXT Edit fail with "File content has changed". Gated on
+    // hooks having actually run so we only pay for the re-read when a hook
+    // could have touched the file.
+    if (postToolHookInfos.length > 0) {
+      resyncWritableFileStateAfterHooks(
+        tool.name,
+        processedInput,
+        toolUseContext.readFileState,
       )
     }
 
