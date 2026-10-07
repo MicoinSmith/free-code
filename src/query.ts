@@ -451,7 +451,8 @@ async function* queryLoop(
     )
 
     queryCheckpoint('query_autocompact_start')
-    const { compactionResult, consecutiveFailures } = await deps.autocompact(
+    const { compactionResult, consecutiveFailures, consecutiveRecompactions } =
+      await deps.autocompact(
       messagesForQuery,
       toolUseContext,
       {
@@ -523,6 +524,11 @@ async function* queryLoop(
         turnId: deps.uuid(),
         turnCounter: 0,
         consecutiveFailures: 0,
+        // Carry the "compacted but freed no headroom" streak across iterations
+        // so the thrash breaker in autoCompactIfNeeded can trip. Preserve the
+        // previous value when the result didn't report one (unknown estimate).
+        consecutiveRecompactions:
+          consecutiveRecompactions ?? tracking?.consecutiveRecompactions,
       }
 
       const postCompactMessages = buildPostCompactMessages(compactionResult)

@@ -57,6 +57,10 @@ export type AutoCompactTrackingState = {
   // Used as a circuit breaker to stop retrying when the context is
   // irrecoverably over the limit (e.g., prompt_too_long).
   consecutiveFailures?: number
+  // Consecutive successful compactions that left the context at/above the
+  // autocompact threshold (see MAX_CONSECUTIVE_IMMEDIATE_RECOMPACTIONS).
+  // Reset as soon as a compaction actually frees headroom.
+  consecutiveRecompactions?: number
 }
 
 export const AUTOCOMPACT_BUFFER_TOKENS = 13_000
@@ -68,6 +72,14 @@ export const MANUAL_COMPACT_BUFFER_TOKENS = 3_000
 // BQ 2026-03-10: 1,279 sessions had 50+ consecutive failures (up to 3,272)
 // in a single session, wasting ~250K API calls/day globally.
 const MAX_CONSECUTIVE_AUTOCOMPACT_FAILURES = 3
+
+// Stop auto-compacting when it stops making progress: the context lands back at
+// or above the autocompact threshold immediately after each SUCCESSFUL
+// compaction, so the next turn compacts again. Distinct from
+// MAX_CONSECUTIVE_AUTOCOMPACT_FAILURES (which counts thrown errors) — here the
+// compaction "succeeds" but frees no headroom, which would otherwise burn API
+// calls indefinitely without ever tripping the failure breaker.
+const MAX_CONSECUTIVE_IMMEDIATE_RECOMPACTIONS = 3
 
 export function getAutoCompactThreshold(model: string): number {
   const effectiveContextWindow = getEffectiveContextWindowSize(model)
@@ -238,6 +250,28 @@ export async function shouldAutoCompact(
   return isAboveAutoCompactThreshold
 }
 
+/**
+ * Next value for the thrash counter given a completed compaction.
+ *
+ * `truePostCompactTokenCount` is the message-payload estimate of the post-
+ * compact context; the next turn's shouldAutoCompact sees that plus system
+ * prompt / tools / userContext, so landing at-or-above the threshold means the
+ * next turn will compact again. Returns undefined when the count isn't known
+ * (e.g. session-memory compaction) so the caller preserves the previous value
+ * rather than resetting a live streak.
+ */
+function nextRecompactionCount(
+  result: CompactionResult,
+  model: string,
+  tracking: AutoCompactTrackingState | undefined,
+): number | undefined {
+  const postCompactTokens = result.truePostCompactTokenCount
+  if (postCompactTokens === undefined) return undefined
+  return postCompactTokens >= getAutoCompactThreshold(model)
+    ? (tracking?.consecutiveRecompactions ?? 0) + 1
+    : 0
+}
+
 export async function autoCompactIfNeeded(
   messages: Message[],
   toolUseContext: ToolUseContext,
@@ -249,6 +283,7 @@ export async function autoCompactIfNeeded(
   wasCompacted: boolean
   compactionResult?: CompactionResult
   consecutiveFailures?: number
+  consecutiveRecompactions?: number
 }> {
   if (isEnvTruthy(process.env.DISABLE_COMPACT)) {
     return { wasCompacted: false }
@@ -261,6 +296,20 @@ export async function autoCompactIfNeeded(
     tracking?.consecutiveFailures !== undefined &&
     tracking.consecutiveFailures >= MAX_CONSECUTIVE_AUTOCOMPACT_FAILURES
   ) {
+    return { wasCompacted: false }
+  }
+
+  // Thrash breaker: compaction keeps succeeding but frees no headroom, so the
+  // next turn compacts again. Stop rather than burn API calls on a loop that
+  // the failure breaker above never sees (a "success" resets it to 0).
+  if (
+    tracking?.consecutiveRecompactions !== undefined &&
+    tracking.consecutiveRecompactions >= MAX_CONSECUTIVE_IMMEDIATE_RECOMPACTIONS
+  ) {
+    logForDebugging(
+      `autocompact: thrash guard tripped after ${tracking.consecutiveRecompactions} consecutive compactions that did not free headroom — skipping further auto-compaction this session`,
+      { level: 'warn' },
+    )
     return { wasCompacted: false }
   }
 
@@ -306,6 +355,11 @@ export async function autoCompactIfNeeded(
     return {
       wasCompacted: true,
       compactionResult: sessionMemoryResult,
+      consecutiveRecompactions: nextRecompactionCount(
+        sessionMemoryResult,
+        model,
+        tracking,
+      ),
     }
   }
 
@@ -330,6 +384,11 @@ export async function autoCompactIfNeeded(
       compactionResult,
       // Reset failure count on success
       consecutiveFailures: 0,
+      consecutiveRecompactions: nextRecompactionCount(
+        compactionResult,
+        model,
+        tracking,
+      ),
     }
   } catch (error) {
     if (!hasExactErrorMessage(error, ERROR_MESSAGE_USER_ABORT)) {
