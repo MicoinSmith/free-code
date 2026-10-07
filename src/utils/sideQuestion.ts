@@ -10,7 +10,11 @@ import { formatAPIError } from '../services/api/errorUtils.js'
 import type { NonNullableUsage } from '../services/api/logging.js'
 import type { Message, SystemAPIErrorMessage } from '../types/message.js'
 import { type CacheSafeParams, runForkedAgent } from './forkedAgent.js'
-import { createUserMessage, extractTextContent } from './messages.js'
+import {
+  createAssistantMessage,
+  createUserMessage,
+  extractTextContent,
+} from './messages.js'
 
 // Pattern to detect "/btw" at start of input (case-insensitive, word boundary)
 const BTW_PATTERN = /^\/btw\b/gi
@@ -45,40 +49,56 @@ export type SideQuestionResult = {
   usage: NonNullableUsage
 }
 
+/** One turn of a side conversation. The first entry is always the user's. */
+export type SideQuestionTurn = {
+  role: 'user' | 'assistant'
+  text: string
+}
+
 /**
- * Run a side question using a forked agent.
+ * Run the next turn of a side conversation using a forked agent.
  * Shares the parent's prompt cache — no thinking override, no cache write.
- * All tools are blocked and we cap at 1 turn.
+ * All tools are blocked and each call is capped at 1 turn; continuity across
+ * follow-ups comes from replaying the prior turns in `history`, not from
+ * raising maxTurns.
  */
 export async function runSideQuestion({
-  question,
+  history,
   cacheSafeParams,
 }: {
-  question: string
+  history: SideQuestionTurn[]
   cacheSafeParams: CacheSafeParams
 }): Promise<SideQuestionResult> {
-  // Wrap the question with instructions to answer without tools
-  const wrappedQuestion = `<system-reminder>This is a side question from the user. You must answer this question directly in a single response.
+  // Guardrail instructions, attached to the first user turn only. Replayed
+  // follow-ups carry no reminder — the guidance still governs the whole
+  // conversation, and re-injecting it would bloat every later request.
+  const wrappedFirstQuestion = `<system-reminder>This is a side conversation with the user. You must answer directly in a single response.
 
 IMPORTANT CONTEXT:
-- You are a separate, lightweight agent spawned to answer this one question
+- You are a separate, lightweight agent, distinct from the main conversation
 - The main agent is NOT interrupted - it continues working independently in the background
 - You share the conversation context but are a completely separate instance
 - Do NOT reference being interrupted or what you were "previously doing" - that framing is incorrect
 
 CRITICAL CONSTRAINTS:
 - You have NO tools available - you cannot read files, run commands, search, or take any actions
-- This is a one-off response - there will be no follow-up turns
+- Each reply is a single response; the user may then ask a follow-up
 - You can ONLY provide information based on what you already know from the conversation context
 - NEVER say things like "Let me try...", "I'll now...", "Let me check...", or promise to take any action
 - If you don't know the answer, say so - do not offer to look it up or investigate
 
 Simply answer the question with the information you have.</system-reminder>
 
-${question}`
+${history[0]?.text ?? ''}`
+
+  const promptMessages = history.map((turn, i) =>
+    turn.role === 'user'
+      ? createUserMessage({ content: i === 0 ? wrappedFirstQuestion : turn.text })
+      : createAssistantMessage({ content: turn.text }),
+  )
 
   const agentResult = await runForkedAgent({
-    promptMessages: [createUserMessage({ content: wrappedQuestion })],
+    promptMessages,
     // Do NOT override thinkingConfig — thinking is part of the API cache key,
     // and diverging from the main thread's config busts the prompt cache.
     // Adaptive thinking on a quick Q&A has negligible overhead.
@@ -90,7 +110,9 @@ ${question}`
     }),
     querySource: 'side_question',
     forkLabel: 'side_question',
-    maxTurns: 1, // Single turn only - no tool use loops
+    // One turn per call: the side conversation's continuity is replayed through
+    // promptMessages, not through extra turns, so tools stay unreachable.
+    maxTurns: 1,
     // No future request shares this suffix; skip writing cache entries.
     skipCacheWrite: true,
   })
