@@ -5,3 +5,8 @@ cli-dev
 openclaw/
 .env
 .free-code.env
+
+# Vendored agent skill installs — pinned/reproducible via skills-lock.json.
+# Same class as node_modules: installed artifacts, not source.
+.claude/skills/
+.agents/skills/

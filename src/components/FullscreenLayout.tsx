@@ -14,6 +14,7 @@ import { isFullscreenEnvEnabled } from '../utils/fullscreen.js';
 import { plural } from '../utils/stringUtils.js';
 import { isNullRenderingAttachment } from './messages/nullRenderingAttachments.js';
 import PromptInputFooterSuggestions from './PromptInput/PromptInputFooterSuggestions.js';
+import { anchorOnCompleteEnabled } from './ScrollKeybindingHandler.js';
 import type { StickyPrompt } from './VirtualMessageList.js';
 
 /** Rows of transcript context kept visible above the modal pane's ▔ divider. */
@@ -358,7 +359,7 @@ export function FullscreenLayout(t0) {
     }
     let t11;
     if ($[11] !== overlay || $[12] !== scrollRef || $[13] !== t10 || $[14] !== t9) {
-      t11 = <ScrollBox ref={scrollRef} flexGrow={1} flexDirection="column" paddingTop={t9} stickyScroll={true}>{t10}{overlay}</ScrollBox>;
+      t11 = <ScrollBox ref={scrollRef} flexGrow={1} flexDirection="column" paddingTop={t9} stickyScroll={!anchorOnCompleteEnabled()}>{t10}{overlay}</ScrollBox>;
       $[11] = overlay;
       $[12] = scrollRef;
       $[13] = t10;

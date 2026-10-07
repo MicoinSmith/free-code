@@ -90,6 +90,11 @@ type Props = {
    *  ScrollChromeContext (not a callback prop) so state lives in
    *  FullscreenLayout instead of REPL. */
   trackStickyPrompt?: boolean;
+  /** Turn-in-progress flag. Used only when `anchorOnComplete` is set. */
+  isLoading?: boolean;
+  /** Opt-in (sec: anchorOnCompleteEnabled): don't follow during streaming;
+   *  when the turn completes, anchor the start of the new output at the top. */
+  anchorOnComplete?: boolean;
   selectedIndex?: number;
   /** Nav handle lives here because height measurement lives here. */
   cursorNavRef?: React.Ref<MessageActionsNav>;
@@ -297,6 +302,8 @@ export function VirtualMessageList({
   isItemExpanded,
   extractSearchText = defaultExtractSearchText,
   trackStickyPrompt,
+  isLoading,
+  anchorOnComplete,
   selectedIndex,
   cursorNavRef,
   setCursor,
@@ -413,6 +420,37 @@ export function VirtualMessageList({
       s.scrollToIndex(selectedIndex);
     }
   }, [selectedIndex, scrollRef]);
+
+  // Opt-in "don't interfere while I read" model (sec: anchorOnCompleteEnabled).
+  // Only when the flag is on: the transcript no longer follows the stream
+  // (stickyScroll is off — see FullscreenLayout), so when the turn finishes we
+  // put the start of the freshly returned output at the viewport top. "Start of
+  // the output" = the first row after the last user prompt. React Compiler
+  // memoizes this component; the ref keeps the previous isLoading across
+  // renders so we only fire on the true→false edge.
+  const prevLoadingRef = useRef<boolean | undefined>(isLoading);
+  useEffect(() => {
+    const wasLoading = prevLoadingRef.current;
+    prevLoadingRef.current = isLoading;
+    if (!anchorOnComplete) return;
+    if (wasLoading !== true || isLoading !== false) return;
+    let lastUser = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i]!.type === 'user') {
+        lastUser = i;
+        break;
+      }
+    }
+    const idx = lastUser + 1;
+    if (lastUser < 0 || idx >= messages.length) return;
+    const el = getItemElement(idx);
+    if (el) {
+      scrollRef.current?.scrollToElement(el, 1);
+    } else {
+      const top = getItemTop(idx);
+      if (top >= 0) scrollRef.current?.scrollTo(top);
+    }
+  }, [isLoading, anchorOnComplete, messages, getItemElement, getItemTop, scrollRef]);
 
   // Pending seek request. jump() sets this + bumps seekGen. The seek
   // effect fires post-paint (passive effect — after resetAfterCommit),

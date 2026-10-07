@@ -309,6 +309,27 @@ export function readScrollSpeedBase(): number {
   return Number.isNaN(n) || n <= 0 ? 1 : Math.min(n, 20);
 }
 
+// Opt-in scroll model. Default OFF = current behavior: the transcript follows
+// the tail while a turn streams (sticky), and nothing repositions on its own.
+//
+// ON (CLAUDE_CODE_SCROLL_ANCHOR_ON_COMPLETE=1) = "don't interfere while I read":
+//   • no follow during streaming — content grows below the viewport untouched;
+//   • when the turn completes, the start of the newly returned output is
+//     anchored to the viewport top so you read the answer from the beginning.
+//
+// Cached once: the value is constant for the process, so callers can read it
+// inside memoized render blocks without threading it through a cache dep. If
+// it is somehow read before settings env is applied, it caches false — i.e. the
+// old follow behavior — which is the safe fallback.
+let _anchorOnComplete: boolean | undefined;
+export function anchorOnCompleteEnabled(): boolean {
+  if (_anchorOnComplete === undefined) {
+    const raw = (process.env.CLAUDE_CODE_SCROLL_ANCHOR_ON_COMPLETE ?? '').toLowerCase();
+    _anchorOnComplete = raw === '1' || raw === 'true' || raw === 'on';
+  }
+  return _anchorOnComplete;
+}
+
 /** Initial wheel accel state. xtermJs=true selects the decay curve.
  *  base is the native-path baseline rows/event (default 1). */
 export function initWheelAccel(xtermJs = false, base = 1): WheelAccelState {
