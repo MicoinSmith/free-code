@@ -632,7 +632,8 @@ async function getMessagesForSlashCommand(commandName: string, args: string, set
                 shouldHidePromptInput: true,
                 showSpinner: false,
                 isLocalJSXCommand: true,
-                isImmediate: command.immediate === true
+                isImmediate: command.immediate === true,
+                altScreen: command.altScreen === true ? true : undefined
               });
             }).catch(e => {
               // If load()/call() throws and onDone never fired, the outer

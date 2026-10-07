@@ -144,6 +144,21 @@ export type LocalJSXCommandModule = {
 type LocalJSXCommand = {
   type: 'local-jsx'
   /**
+   * Render this command's JSX in its own alternate-screen frame instead of
+   * inline in the output flow.
+   *
+   * Without an alt screen there is no screen coordinate space to overlay
+   * onto — the Ink renderer sizes the frame to the content unless altScreen
+   * is active (renderer.ts: `height = altScreen ? terminalRows : yogaHeight`)
+   * — so a command that wants a popup has to BE the frame while it is open.
+   * REPL wires this through setToolJSX; see the early return next to the
+   * transcript branch. The command's component can keep using
+   * useModalOrTerminalSize()/useIsInsideModal(): REPL provides ModalContext
+   * for the popup frame, so the size it reads is the popup's, not the
+   * terminal's.
+   */
+  altScreen?: boolean
+  /**
    * Lazy-load the command implementation.
    * Returns a module with a call() function.
    * This defers loading heavy dependencies until the command is invoked.

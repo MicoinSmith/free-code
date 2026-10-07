@@ -108,6 +108,12 @@ export type SetToolJSXFn = (
     showSpinner?: boolean
     isLocalJSXCommand?: boolean
     isImmediate?: boolean
+    /**
+     * Render this command's JSX in its own alternate-screen frame (a popup)
+     * instead of inline in the output flow. Set by processSlashCommand from
+     * the command's `altScreen` flag; see LocalJSXCommand.altScreen.
+     */
+    altScreen?: true
     /** Set to true to clear a local JSX command (e.g., from its onDone callback) */
     clearLocalJSX?: boolean
   } | null,

@@ -3,15 +3,27 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useInterval } from 'usehooks-ts'
 import type { CommandResultDisplay } from '../../commands.js'
 import { Markdown } from '../../components/Markdown.js'
+import {
+  computeWheelStep,
+  initWheelAccel,
+  readScrollSpeedBase,
+  scrollUp,
+  type WheelAccelState,
+} from '../../components/ScrollKeybindingHandler.js'
 import { SpinnerGlyph } from '../../components/Spinner/SpinnerGlyph.js'
 import TextInput from '../../components/TextInput.js'
 import { getSystemPrompt } from '../../constants/prompts.js'
-import { useModalOrTerminalSize } from '../../context/modalContext.js'
+import {
+  useIsInsideModal,
+  useModalOrTerminalSize,
+} from '../../context/modalContext.js'
 import { getSystemContext, getUserContext } from '../../context.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import ScrollBox, { type ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
 import type { KeyboardEvent } from '../../ink/events/keyboard-event.js'
 import { Box, Text } from '../../ink.js'
+import { isXtermJs } from '../../ink/terminal.js'
+import { useKeybindings } from '../../keybindings/useKeybinding.js'
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
 import type { Message } from '../../types/message.js'
 import { createAbortController } from '../../utils/abortController.js'
@@ -37,6 +49,20 @@ const OUTER_CHROME_ROWS = 6
 const SCROLL_LINES = 3
 
 /**
+ * Height budget when NOT inside the modal slot (the default: fullscreen needs
+ * USER_TYPE=ant). There, /btw renders at the tail of the normal output flow
+ * (REPL's `bottom` slot) with nothing bounding it — FullscreenLayout's
+ * `maxHeight="50%"` wrapper and the modal's `maxHeight` only exist on the
+ * fullscreen path. Sizing the transcript from the full terminal height made
+ * the overlay ~one screen tall, so it pushed the transcript out of view and
+ * overdrew the prompt below it. Cap it the same way Settings does for its
+ * non-modal case.
+ */
+const NON_MODAL_MAX_ROWS = 30
+const NON_MODAL_MIN_ROWS = 15
+const NON_MODAL_SCREEN_FRACTION = 0.8
+
+/**
  * `/btw` overlay: a side conversation that shares the main thread's context
  * (and prompt cache) but runs as a separate, tool-less agent.
  *
@@ -45,7 +71,9 @@ const SCROLL_LINES = 3
  *   Enter            send the typed follow-up
  *   Esc / Ctrl+C / D dismiss (Space no longer dismisses — it used to fire on
  *                    a stray press while scrolling)
- *   ↑/↓, Ctrl+P/N    scroll the transcript a few lines (while no input focus)
+ *   mouse wheel /    scroll the transcript (wheel is the 'Scroll' context's
+ *   trackpad         scroll:lineUp/lineDown bindings + the shared accel curve)
+ *   ↑/↓, Ctrl+P/N    scroll a few lines (arrows only while no input focus)
  *   PgUp/PgDn        scroll a page
  *   Home/End         jump to top / bottom (while no input focus)
  */
@@ -60,10 +88,26 @@ function BtwSideQuestion({ question, context, onDone }: BtwComponentProps) {
   const [cursorOffset, setCursorOffset] = useState(0)
   const scrollRef = useRef<ScrollBoxHandle>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const wheelAccelRef = useRef<WheelAccelState | null>(null)
 
   const size = useModalOrTerminalSize(useTerminalSize())
   const rows = size.rows
   const columns = size.columns
+
+  // Inside the modal, `rows` is the pane's own budget. Outside it, `rows` is
+  // the whole terminal and the overlay has to share the screen with the
+  // transcript and prompt — bound it to a fraction of the screen.
+  const insideModal = useIsInsideModal()
+  const heightBudget = insideModal
+    ? rows
+    : Math.max(
+        NON_MODAL_MIN_ROWS,
+        Math.min(Math.floor(rows * NON_MODAL_SCREEN_FRACTION), NON_MODAL_MAX_ROWS),
+      )
+  const maxContentHeight = Math.max(
+    5,
+    heightBudget - CHROME_ROWS - OUTER_CHROME_ROWS,
+  )
 
   useInterval(() => setFrame(f => f + 1), pending ? 80 : null)
 
@@ -129,7 +173,50 @@ function BtwSideQuestion({ question, context, onDone }: BtwComponentProps) {
   )
 
   const inputFocused = !pending && error === null
-  const page = Math.max(5, rows - CHROME_ROWS - OUTER_CHROME_ROWS)
+  // A "page" is one viewport of transcript — keep the two in lockstep so
+  // PgUp/PgDn never scroll past what the user can actually see.
+  const page = maxContentHeight
+
+  // Trackpad / mouse wheel. The 'Scroll' context binds wheelup/wheeldown to
+  // scroll:lineUp/lineDown (defaultBindings), and useKeybindings resolves
+  // those against its own context list — so this works without the 'Scroll'
+  // context being registered as active. Runs the same accel curve the
+  // transcript uses, so the feel matches (iTerm2 sends one event per notch,
+  // a trackpad sends a burst).
+  //
+  // Requires the popup to have mouse tracking on (REPL's alt frame) —
+  // otherwise the terminal never sends the wheel sequence at all.
+  const wheelScroll = useCallback((dir: 1 | -1) => {
+    const box = scrollRef.current
+    // Content fits: nothing to scroll, don't touch the position.
+    if (!box || box.getScrollHeight() <= box.getViewportHeight()) return
+    wheelAccelRef.current ??= initWheelAccel(isXtermJs(), readScrollSpeedBase())
+    const step = computeWheelStep(wheelAccelRef.current, dir, performance.now())
+    if (dir < 0) {
+      scrollUp(box, step)
+      return
+    }
+    const max = Math.max(0, box.getScrollHeight() - box.getViewportHeight())
+    // Include pendingDelta — scrollBy accumulates without moving scrollTop,
+    // so getScrollTop() alone is stale inside a burst of wheel events.
+    if (box.getScrollTop() + box.getPendingDelta() + step >= max) {
+      box.scrollToBottom()
+      return
+    }
+    box.scrollBy(step)
+  }, [])
+
+  useKeybindings(
+    {
+      'scroll:lineUp': () => {
+        wheelScroll(-1)
+      },
+      'scroll:lineDown': () => {
+        wheelScroll(1)
+      },
+    },
+    { context: 'Scroll' },
+  )
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -179,7 +266,6 @@ function BtwSideQuestion({ question, context, onDone }: BtwComponentProps) {
     [onDone, page, inputFocused],
   )
 
-  const maxContentHeight = Math.max(5, rows - CHROME_ROWS - OUTER_CHROME_ROWS)
   // The header already shows the first question, so the transcript starts at
   // the first answer (index 1).
   const transcript = turns.slice(1)
@@ -251,8 +337,8 @@ function BtwSideQuestion({ question, context, onDone }: BtwComponentProps) {
       <Box marginTop={1}>
         <Text dimColor={true}>
           {inputFocused
-            ? 'Enter to send · PgUp/PgDn or Ctrl+P/N to scroll · Esc to dismiss'
-            : '↑/↓ or PgUp/PgDn to scroll · Esc to dismiss'}
+            ? 'Enter to send · scroll/PgUp/PgDn · Esc to dismiss'
+            : '↑/↓, scroll, PgUp/PgDn to scroll · Esc to dismiss'}
         </Text>
       </Box>
     </Box>

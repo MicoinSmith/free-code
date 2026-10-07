@@ -285,6 +285,7 @@ import type { RemoteMessageContent } from '../utils/teleport/api.js';
 import { FullscreenLayout, useUnseenDivider, computeUnseenDivider } from '../components/FullscreenLayout.js';
 import { isFullscreenEnvEnabled, maybeGetTmuxMouseHint, isMouseTrackingEnabled } from '../utils/fullscreen.js';
 import { AlternateScreen } from '../ink/components/AlternateScreen.js';
+import { ModalContext } from '../context/modalContext.js';
 import { ScrollKeybindingHandler } from '../components/ScrollKeybindingHandler.js';
 import { useMessageActions, MessageActionsKeybindings, MessageActionsBar, type MessageActionsState, type MessageActionsNav, type MessageActionCaps } from '../components/messageActions.js';
 import { setClipboard } from '../ink/termio/osc.js';
@@ -1039,6 +1040,7 @@ export function REPL({
     showSpinner?: boolean;
     isLocalJSXCommand?: boolean;
     isImmediate?: boolean;
+    altScreen?: boolean;
   } | null>(null);
 
   // Track local JSX commands separately so tools can't overwrite them.
@@ -1049,6 +1051,7 @@ export function REPL({
     shouldContinueAnimation?: true;
     showSpinner?: boolean;
     isLocalJSXCommand: true;
+    altScreen?: boolean;
   } | null>(null);
 
   // Wrapper for setToolJSX that preserves local JSX commands (like /btw).
@@ -1066,6 +1069,8 @@ export function REPL({
     shouldContinueAnimation?: true;
     showSpinner?: boolean;
     isLocalJSXCommand?: boolean;
+    isImmediate?: boolean;
+    altScreen?: boolean;
     clearLocalJSX?: boolean;
   } | null) => {
     // If setting a local JSX command, store it in the ref
@@ -4248,7 +4253,8 @@ export function REPL({
   // wrapping). Clearing searchQuery triggers VML's setSearchQuery('')
   // which clears positionsCache + setPositions(null). Bar closes.
   // User hits / again → fresh everything.
-  const transcriptCols = useTerminalSize().columns;
+  const terminalSize = useTerminalSize();
+  const transcriptCols = terminalSize.columns;
   const prevColsRef = React.useRef(transcriptCols);
   React.useEffect(() => {
     if (prevColsRef.current !== transcriptCols) {
@@ -4486,6 +4492,41 @@ export function REPL({
         </AlternateScreen>;
     }
     return transcriptReturn;
+  }
+
+  // A `local-jsx` command can opt into its own alternate-screen popup
+  // (`altScreen: true`, e.g. /btw). Without an alt screen there is no screen
+  // coordinate space to overlay onto: the renderer sizes the frame to the
+  // content unless altScreen is active (`height = altScreen ? terminalRows :
+  // yogaHeight` in renderer.ts, which also drops writes past terminalRows).
+  // So the command's JSX has to BE the frame while it is open — mounting
+  // <AlternateScreen> further down the tree would place the JSX below
+  // terminalRows, where setCellAt drops it, and it would never paint.
+  // Same root element type as the transcript branch above so React
+  // reconciles and Ink's alt-buffer state stays consistent.
+  //
+  // ModalContext is what makes this a *bounded* pane rather than a
+  // full-terminal one: the command's useModalOrTerminalSize() then reads the
+  // popup's rows/columns (and useIsInsideModal() picks its full-height
+  // budget) instead of treating the whole terminal as its own.
+  if (toolJSX?.altScreen && toolJSX.jsx != null) {
+    // Mouse tracking ON: SGR wheel events are the only way trackpad scrolling
+    // reaches the command's ScrollBox (the command maps wheelup/wheeldown to
+    // scroll:lineUp/lineDown). Same helper the transcript view uses, so
+    // CLAUDE_CODE_DISABLE_MOUSE still turns it off.
+    return <AlternateScreen mouseTracking={isMouseTrackingEnabled()}>
+        <KeybindingSetup>
+          <ModalContext value={{
+          rows: terminalSize.rows,
+          columns: terminalSize.columns - 4,
+          scrollRef: modalScrollRef
+        }}>
+            <Box flexDirection="column" paddingX={2} flexGrow={1}>
+              {toolJSX.jsx}
+            </Box>
+          </ModalContext>
+        </KeybindingSetup>
+      </AlternateScreen>;
   }
 
   // Get viewed agent task (inlined from selectors for explicit data flow).
