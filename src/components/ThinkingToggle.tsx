@@ -2,8 +2,11 @@ import { c as _c } from "react/compiler-runtime";
 import * as React from 'react';
 import { useState } from 'react';
 import { useExitOnCtrlCDWithKeybindings } from 'src/hooks/useExitOnCtrlCDWithKeybindings.js';
+import { companionReservedColumns } from '../buddy/CompanionSprite.js';
+import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { Box, Text } from '../ink.js';
 import { useKeybinding } from '../keybindings/useKeybinding.js';
+import { useAppState } from '../state/AppState.js';
 import { ConfigurableShortcutHint } from './ConfigurableShortcutHint.js';
 import { Select } from './CustomSelect/index.js';
 import { Byline } from './design-system/Byline.js';
@@ -16,7 +19,7 @@ export type Props = {
   isMidConversation?: boolean;
 };
 export function ThinkingToggle(t0) {
-  const $ = _c(27);
+  const $ = _c(28);
   const {
     currentValue,
     onSelect,
@@ -25,6 +28,14 @@ export function ThinkingToggle(t0) {
   } = t0;
   const exitState = useExitOnCtrlCDWithKeybindings();
   const [confirmationPending, setConfirmationPending] = useState(null);
+  // This pane renders in PromptInput's slot — a flexGrow row-sibling of the
+  // companion sprite — so its border must be the terminal minus the columns
+  // the sprite reserves. Same reasoning as PromptInput's banner rules.
+  const {
+    columns
+  } = useTerminalSize();
+  const companionSpeaking = useAppState(s => s.companionReaction !== undefined);
+  const paneWidth = columns - companionReservedColumns(columns, companionSpeaking);
   let t1;
   if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
     t1 = [{
@@ -139,10 +150,11 @@ export function ThinkingToggle(t0) {
     t10 = $[23];
   }
   let t11;
-  if ($[24] !== t10 || $[25] !== t9) {
-    t11 = <Pane color="permission">{t9}{t10}</Pane>;
+  if ($[24] !== t10 || $[25] !== t9 || $[27] !== paneWidth) {
+    t11 = <Pane color="permission" width={paneWidth}>{t9}{t10}</Pane>;
     $[24] = t10;
     $[25] = t9;
+    $[27] = paneWidth;
     $[26] = t11;
   } else {
     t11 = $[26];

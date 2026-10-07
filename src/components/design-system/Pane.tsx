@@ -10,6 +10,15 @@ type PaneProps = {
    * Theme color for the top border line.
    */
   color?: keyof Theme;
+  /**
+   * Width of the top border line. Defaults to the terminal width.
+   *
+   * Pass this when the Pane renders in a column narrower than the terminal
+   * (e.g. beside the companion sprite, which is a row-sibling of the prompt
+   * slot) — Divider draws an explicit '─'.repeat(width), so it does not
+   * inherit the parent's width and would otherwise overflow and wrap.
+   */
+  width?: number;
 };
 
 /**
@@ -31,10 +40,11 @@ type PaneProps = {
  * </Pane>
  */
 export function Pane(t0) {
-  const $ = _c(9);
+  const $ = _c(10);
   const {
     children,
-    color
+    color,
+    width
   } = t0;
   if (useIsInsideModal()) {
     let t1;
@@ -48,9 +58,10 @@ export function Pane(t0) {
     return t1;
   }
   let t1;
-  if ($[2] !== color) {
-    t1 = <Divider color={color} />;
+  if ($[2] !== color || $[9] !== width) {
+    t1 = <Divider color={color} width={width} />;
     $[2] = color;
+    $[9] = width;
     $[3] = t1;
   } else {
     t1 = $[3];
