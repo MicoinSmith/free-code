@@ -17,7 +17,16 @@
       "Bash(git push:*)",
       "Bash(bun run:*)",
       "Bash(rm -rf /tmp/fprobe)",
-      "Bash(~/.local/bin/free-code --version)"
+      "Bash(~/.local/bin/free-code --version)",
+      "Bash(./cli-dev --help)",
+      "Bash(grep -n '\"\"dev\"\"' package.json)",
+      "Bash(grep -rn \"function getDynamicConfig_BLOCKS_ON_INIT\\\\|getDynamicConfig_BLOCKS_ON_INIT\" src/utils/config.ts src/services/**/*.ts)",
+      "Bash(grep -rn export.*getDynamicConfig_BLOCKS_ON_INIT -A 20 src/)",
+      "Bash(grep -rn \"defaultMode\" src/utils/permissions/*.ts src/utils/settings/settings.ts src/main.tsx)",
+      "Bash(./cli --version)",
+      "Bash(./cli --help)",
+      "Bash(ln -sfn /root/free-code/cli /root/.local/bin/free-code)",
+      "Bash(cc --version)"
     ]
   }
 }
