@@ -3276,7 +3276,13 @@ export function REPL({
             setToolJSX({
               jsx,
               shouldHidePromptInput: false,
-              isLocalJSXCommand: true
+              isLocalJSXCommand: true,
+              // Carry altScreen through the immediate fast path too. The
+              // idle path (processSlashCommand) forwards it, but this one
+              // runs while queryGuard is active — without it REPL skips the
+              // alt-screen popup branch and renders the command inline at the
+              // tail of the output flow (e.g. /btw looked like plain output).
+              altScreen: matchingCommand.altScreen === true ? true : undefined
             });
           }
         };

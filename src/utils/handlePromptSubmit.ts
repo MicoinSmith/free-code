@@ -304,6 +304,9 @@ export async function handlePromptSubmit(
           shouldHidePromptInput: false,
           isLocalJSXCommand: true,
           isImmediate: true,
+          // See REPL's immediate fast path: altScreen must ride along here
+          // too, or the command renders inline instead of in its popup.
+          altScreen: immediateCommand.altScreen === true ? true : undefined,
         })
       }
       return
