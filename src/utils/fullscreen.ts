@@ -105,9 +105,10 @@ export function _resetTmuxControlModeProbeForTesting(): void {
 }
 
 /**
- * Runtime env-var check only. Ants default to on (CLAUDE_CODE_NO_FLICKER=0
- * to opt out); external users default to off (CLAUDE_CODE_NO_FLICKER=1 to
- * opt in).
+ * Runtime env-var check only. This fork defaults fullscreen ON for everyone
+ * (so the prompt/companion/mode footer stays pinned to the bottom while the
+ * transcript scrolls). CLAUDE_CODE_NO_FLICKER=0 opts out; =1 forces on.
+ * tmux -CC still auto-disables (see below).
  */
 export function isFullscreenEnvEnabled(): boolean {
   // Explicit user opt-out always wins.
@@ -125,7 +126,9 @@ export function isFullscreenEnvEnabled(): boolean {
     }
     return false
   }
-  return process.env.USER_TYPE === 'ant'
+  // Fork default: fullscreen on for everyone (pinned bottom). Explicit
+  // opt-out via CLAUDE_CODE_NO_FLICKER=0 is handled above.
+  return true
 }
 
 /**
