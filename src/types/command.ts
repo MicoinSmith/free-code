@@ -95,6 +95,12 @@ export type LocalJSXCommandContext = ToolUseContext & {
     log: LogOption,
     entrypoint: ResumeEntrypoint,
   ) => Promise<void>
+  /**
+   * Re-pin the transcript scroll and force a repaint. Consumed by /clear
+   * (via clearConversation) so the emptied transcript isn't left blank or
+   * scrolled past its content in fullscreen.
+   */
+  resetTranscriptView?: () => void
 }
 
 export type ResumeEntrypoint =

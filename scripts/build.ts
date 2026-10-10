@@ -80,7 +80,11 @@ function getVersionChangelog(): string {
   )
 }
 
-const defaultFeatures = ['VOICE_MODE']
+// TRANSCRIPT_CLASSIFIER gates the `auto` permission mode (settings.json
+// defaultMode, the shift+tab cycle, and the classifier runtime). This fork
+// defaults it on so `defaultMode: "auto"` is accepted instead of failing
+// settings validation (which skipped the whole settings file).
+const defaultFeatures = ['VOICE_MODE', 'TRANSCRIPT_CLASSIFIER']
 const featureSet = new Set(defaultFeatures)
 for (let i = 0; i < args.length; i += 1) {
   const arg = args[i]

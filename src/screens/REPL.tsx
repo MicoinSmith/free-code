@@ -23,6 +23,7 @@ import { CostThresholdDialog } from '../components/CostThresholdDialog.js';
 import { IdleReturnDialog } from '../components/IdleReturnDialog.js';
 import * as React from 'react';
 import { useEffect, useMemo, useRef, useState, useCallback, useDeferredValue, useLayoutEffect, type RefObject } from 'react';
+import instances from '../ink/instances.js';
 import { useNotifications } from '../context/notifications.js';
 import { sendNotification } from '../services/notifier.js';
 import { startPreventSleep, stopPreventSleep } from '../services/preventSleep.js';
@@ -573,6 +574,32 @@ export type Props = {
   thinkingConfig: ThinkingConfig;
 };
 export type Screen = 'prompt' | 'transcript';
+
+/**
+ * Force a full-damage repaint of the frame that mounts with us.
+ *
+ * An alt-screen popup (e.g. /btw, `altScreen: true`) replaces the fullscreen
+ * main view while staying in the SAME alternate-screen buffer. Both frames are
+ * the full terminal height, so Ink's shrink-clear (log-update) never fires, and
+ * the blit fast path happily copies the previous frame's untouched rows — the
+ * main view's pinned footer (input box, ▔ divider, model/mode line) leaks into
+ * the popup frame, painted below the popup's own content. <AlternateScreen>
+ * can't fix this itself: it is reused (same type + props), so its
+ * useInsertionEffect never re-runs and neither the clear nor
+ * resetFramesForAltScreen() happens.
+ *
+ * Calling forceRedraw() on mount erases the screen and resets Ink's frame
+ * buffers (resetFramesForAltScreen) before the popup's first paint, so the
+ * leaked footer rows can't survive. useLayoutEffect (not passive) so it lands
+ * before the microtask-deferred onRender that resetAfterCommit schedules.
+ */
+function AltFrameReset(): null {
+  useLayoutEffect(() => {
+    instances.get(process.stdout)?.forceRedraw()
+  }, [])
+  return null
+}
+
 export function REPL({
   commands: initialCommands,
   debug,
@@ -1269,6 +1296,15 @@ export function REPL({
     onRepin();
     setCursor(null);
   }, [onRepin, setCursor]);
+  // Consumed by clearConversation (/clear and the other reset paths). Clearing
+  // wipes `messages` but leaves the fullscreen ScrollBox's scroll position and
+  // Ink's blit cache untouched, so the now near-empty transcript region can be
+  // left blank (scrolled past the short welcome content) or stale. Re-pin to
+  // the bottom and force one full-damage repaint so it paints correctly.
+  const resetTranscriptView = useCallback(() => {
+    scrollRef.current?.scrollToBottom();
+    instances.get(process.stdout)?.invalidatePrevFrame();
+  }, []);
   // Backstop for the submit-handler repin at onSubmit. If a buffered stdin
   // event (wheel/drag) races between handler-fire and state-commit, the
   // handler's scrollToBottom can be undone. This effect fires on the render
@@ -2523,10 +2559,11 @@ export function REPL({
       },
       resume,
       setConversationId,
+      resetTranscriptView,
       requestPrompt: feature('HOOK_PROMPTS') ? requestPrompt : undefined,
       contentReplacementState: contentReplacementStateRef.current
     };
-  }, [commands, combinedInitialTools, mainThreadAgentDefinition, debug, initialMcpClients, ideInstallationStatus, dynamicMcpConfig, theme, allowedAgentTypes, store, setAppState, reverify, addNotification, setMessages, onChangeDynamicMcpConfig, resume, requestPrompt, disabled, customSystemPrompt, appendSystemPrompt, setConversationId]);
+  }, [commands, combinedInitialTools, mainThreadAgentDefinition, debug, initialMcpClients, ideInstallationStatus, dynamicMcpConfig, theme, allowedAgentTypes, store, setAppState, reverify, addNotification, setMessages, onChangeDynamicMcpConfig, resume, requestPrompt, disabled, customSystemPrompt, appendSystemPrompt, setConversationId, resetTranscriptView]);
 
   // Session backgrounding (Ctrl+B to background/foreground)
   const handleBackgroundQuery = useCallback(() => {
@@ -3052,7 +3089,8 @@ export function REPL({
           loadedNestedMemoryPaths: loadedNestedMemoryPathsRef.current,
           getAppState: () => store.getState(),
           setAppState,
-          setConversationId
+          setConversationId,
+          resetTranscriptView
         });
         haikuTitleAttemptedRef.current = false;
         setHaikuTitle(undefined);
@@ -4522,6 +4560,7 @@ export function REPL({
     // CLAUDE_CODE_DISABLE_MOUSE still turns it off.
     return <AlternateScreen mouseTracking={isMouseTrackingEnabled()}>
         <KeybindingSetup>
+          <AltFrameReset />
           <ModalContext value={{
           rows: terminalSize.rows,
           columns: terminalSize.columns - 4,
@@ -4835,7 +4874,8 @@ export function REPL({
                 loadedNestedMemoryPaths: loadedNestedMemoryPathsRef.current,
                 getAppState: () => store.getState(),
                 setAppState,
-                setConversationId
+                setConversationId,
+                resetTranscriptView
               });
               haikuTitleAttemptedRef.current = false;
               setHaikuTitle(undefined);

@@ -54,6 +54,7 @@ export async function clearConversation({
   getAppState,
   setAppState,
   setConversationId,
+  resetTranscriptView,
 }: {
   setMessages: (updater: (prev: Message[]) => Message[]) => void
   readFileState: FileStateCache
@@ -62,6 +63,16 @@ export async function clearConversation({
   getAppState?: () => AppState
   setAppState?: (f: (prev: AppState) => AppState) => void
   setConversationId?: (id: UUID) => void
+  /**
+   * Re-sync the transcript view with the now-empty conversation. Reactive
+   * state alone is not enough: /clear wipes `messages`, but the fullscreen
+   * ScrollBox keeps its previous scroll position and Ink's blit cache is
+   * untouched — leaving the near-empty transcript region scrolled past its
+   * content (blank) or stale. The UI passes a callback that re-pins the
+   * scroll to the bottom and forces one full-damage repaint. Optional so
+   * non-UI callers can omit it.
+   */
+  resetTranscriptView?: () => void
 }): Promise<void> {
   // Execute SessionEnd hooks before clearing (bounded by
   // CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS, default 1.5s)
@@ -248,4 +259,8 @@ export async function clearConversation({
   if (hookMessages.length > 0) {
     setMessages(() => hookMessages)
   }
+
+  // Re-pin the transcript and repaint it now that the conversation is empty.
+  // Runs last so it lands against the final (post-hook) message state.
+  resetTranscriptView?.()
 }
