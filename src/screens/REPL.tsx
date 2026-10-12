@@ -1298,12 +1298,14 @@ export function REPL({
   }, [onRepin, setCursor]);
   // Consumed by clearConversation (/clear and the other reset paths). Clearing
   // wipes `messages` but leaves the fullscreen ScrollBox's scroll position and
-  // Ink's blit cache untouched, so the now near-empty transcript region can be
-  // left blank (scrolled past the short welcome content) or stale. Re-pin to
-  // the bottom and force one full-damage repaint so it paints correctly.
+  // Ink's frame buffers untouched — the SAME <AlternateScreen> is reused, so its
+  // mount-time reset never re-runs and the shrinking transcript can be left
+  // blank or stale. Re-pin to the bottom, then forceRedraw() to erase the alt
+  // buffer and reset the frame buffers (same tool AltFrameReset uses for the
+  // popup-footer leak) so the fresh welcome content repaints from scratch.
   const resetTranscriptView = useCallback(() => {
     scrollRef.current?.scrollToBottom();
-    instances.get(process.stdout)?.invalidatePrevFrame();
+    instances.get(process.stdout)?.forceRedraw();
   }, []);
   // Backstop for the submit-handler repin at onSubmit. If a buffered stdin
   // event (wheel/drag) races between handler-fire and state-commit, the
