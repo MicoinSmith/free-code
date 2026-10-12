@@ -35,8 +35,13 @@ import { setCwd } from '../../utils/Shell.js'
 import { processSessionStartHooks } from '../../utils/sessionStart.js'
 import {
   clearSessionMetadata,
+  deleteSessionTranscript,
+  flushSessionStorage,
   getAgentTranscriptPath,
+  getCurrentSessionIdentity,
+  getTranscriptPath,
   resetSessionFilePointer,
+  restoreSessionMetadata,
   saveWorktreeState,
 } from '../../utils/sessionStorage.js'
 import {
@@ -180,9 +185,10 @@ export async function clearConversation({
         ...prev,
         tasks: nextTasks,
         attribution: createEmptyAttributionState(),
-        // Clear standalone agent context (name/color set by /rename, /color)
-        // so the new session doesn't display the old session's identity badge
-        standaloneAgentContext: undefined,
+        // Keep the standalone agent context (name/color set by /rename, /color)
+        // so the new session keeps its display name/badge. Spread from prev —
+        // /clear should not revert the session to anonymous.
+        standaloneAgentContext: prev.standaloneAgentContext,
         fileHistory: {
           snapshots: [],
           trackedFiles: new Set(),
@@ -205,9 +211,23 @@ export async function clearConversation({
   // Clear plan slug cache so a new plan file is used after /clear
   clearAllPlanSlugs()
 
+  // Snapshot the user-set name/identity before wiping the metadata cache so
+  // /clear can carry the name forward into the new session. Without this the
+  // new session reverts to an auto-generated/anonymous name.
+  const preservedIdentity = getCurrentSessionIdentity()
+
   // Clear cached session metadata (title, tag, agent name/color)
-  // so the new session doesn't inherit the previous session's identity
+  // so the new session doesn't inherit the previous session's identity ...
   clearSessionMetadata()
+
+  // ... then reinstate just the name/identity (title + agent name/color) so
+  // the rename survives /clear. Mode/worktree/PR are intentionally not
+  // restored here — they're re-persisted below (mode, worktree) or dropped.
+  restoreSessionMetadata(preservedIdentity)
+
+  // Capture the previous session's transcript path while getSessionId() still
+  // points at it — used below to delete the old session from disk after /clear.
+  const previousTranscriptPath = getTranscriptPath()
 
   // Generate new session ID to provide fresh state
   // Set the old session as parent for analytics lineage tracking
@@ -217,6 +237,17 @@ export async function clearConversation({
     process.env.CLAUDE_CODE_SESSION_ID = getSessionId()
   }
   await resetSessionFilePointer()
+
+  // Delete the previous session from ~/.claude/projects so it doesn't linger
+  // (and can't be resumed). Flush first so a queued write to the old file
+  // can't drain after deletion and resurrect it. Best-effort — a deletion
+  // failure must not abort the clear.
+  try {
+    await flushSessionStorage()
+    await deleteSessionTranscript(previousTranscriptPath)
+  } catch (error) {
+    logError(error)
+  }
 
   // Preserved local_agent tasks had their TaskOutput symlink baked against the
   // old session ID at spawn time, but post-clear transcript writes land under

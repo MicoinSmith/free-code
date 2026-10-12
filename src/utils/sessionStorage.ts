@@ -11,6 +11,7 @@ import {
   mkdir,
   readdir,
   readFile,
+  rm,
   stat,
   unlink,
   writeFile,
@@ -1507,6 +1508,22 @@ export async function resetSessionFilePointer() {
 }
 
 /**
+ * Permanently remove a session's on-disk data from ~/.claude/projects:
+ * the transcript JSONL plus the sibling session directory (subagent
+ * transcripts, remote-agent metadata). Best-effort — `force` swallows
+ * ENOENT so a never-written session is a no-op.
+ *
+ * Used by /clear so the previous session does not linger on disk.
+ */
+export async function deleteSessionTranscript(
+  transcriptPath: string,
+): Promise<void> {
+  const sessionDir = transcriptPath.replace(/\.jsonl$/, '')
+  await rm(transcriptPath, { force: true })
+  await rm(sessionDir, { recursive: true, force: true })
+}
+
+/**
  * Adopt the existing session file after --continue/--resume (non-fork).
  * Call after switchSession + resetSessionFilePointer + restoreSessionMetadata:
  * getTranscriptPath() now derives the resumed file's path from the switched
@@ -2748,6 +2765,24 @@ export function getCurrentSessionTitle(
 
 export function getCurrentSessionAgentColor(): string | undefined {
   return getProject().currentSessionAgentColor
+}
+
+/**
+ * Snapshot the current session's user-set identity (name/title + agent
+ * name/color) so /clear can carry it into the new session instead of
+ * discarding it. Returned shape matches restoreSessionMetadata().
+ */
+export function getCurrentSessionIdentity(): {
+  customTitle?: string
+  agentName?: string
+  agentColor?: string
+} {
+  const project = getProject()
+  return {
+    customTitle: project.currentSessionTitle,
+    agentName: project.currentSessionAgentName,
+    agentColor: project.currentSessionAgentColor,
+  }
 }
 
 /**
