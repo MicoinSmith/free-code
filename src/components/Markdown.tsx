@@ -12,6 +12,12 @@ type Props = {
   children: string;
   /** When true, render all text content as dim */
   dimColor?: boolean;
+  /** Override the width tables lay out against. Defaults to the full terminal
+   *  width (via MarkdownTable's useTerminalSize). Callers whose container is
+   *  narrower than the terminal — e.g. the /btw overlay, which indents its
+   *  content — must pass their real content width, or the table computes a box
+   *  wider than the container and gets wrapped. */
+  forceWidth?: number;
 };
 
 // Module-level token cache — marked.lexer is the hot cost on virtual-scroll
@@ -121,16 +127,17 @@ function MarkdownWithHighlight(props) {
   return t1;
 }
 function MarkdownBody(t0) {
-  const $ = _c(7);
+  const $ = _c(8);
   const {
     children,
     dimColor,
+    forceWidth,
     highlight
   } = t0;
   const [theme] = useTheme();
   configureMarked();
   let elements;
-  if ($[0] !== children || $[1] !== dimColor || $[2] !== highlight || $[3] !== theme) {
+  if ($[0] !== children || $[1] !== dimColor || $[2] !== highlight || $[3] !== theme || $[7] !== forceWidth) {
     const tokens = cachedLexer(stripPromptXMLTags(children));
     elements = [];
     let nonTableContent = "";
@@ -143,7 +150,7 @@ function MarkdownBody(t0) {
     for (const token of tokens) {
       if (token.type === "table") {
         flushNonTableContent();
-        elements.push(<MarkdownTable key={elements.length} token={token as Tokens.Table} highlight={highlight} />);
+        elements.push(<MarkdownTable key={elements.length} token={token as Tokens.Table} highlight={highlight} forceWidth={forceWidth} />);
       } else {
         nonTableContent = nonTableContent + formatToken(token, theme, 0, null, null, highlight);
         nonTableContent;
@@ -155,6 +162,7 @@ function MarkdownBody(t0) {
     $[2] = highlight;
     $[3] = theme;
     $[4] = elements;
+    $[7] = forceWidth;
   } else {
     elements = $[4];
   }

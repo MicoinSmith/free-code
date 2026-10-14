@@ -3,13 +3,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useInterval } from 'usehooks-ts'
 import type { CommandResultDisplay } from '../../commands.js'
 import { Markdown } from '../../components/Markdown.js'
-import {
-  computeWheelStep,
-  initWheelAccel,
-  readScrollSpeedBase,
-  scrollUp,
-  type WheelAccelState,
-} from '../../components/ScrollKeybindingHandler.js'
 import { SpinnerGlyph } from '../../components/Spinner/SpinnerGlyph.js'
 import TextInput from '../../components/TextInput.js'
 import { getSystemPrompt } from '../../constants/prompts.js'
@@ -19,11 +12,10 @@ import {
 } from '../../context/modalContext.js'
 import { getSystemContext, getUserContext } from '../../context.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
-import ScrollBox, { type ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
+import type { ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
+import { ScrollPane } from '../../components/ScrollPane.js'
 import type { KeyboardEvent } from '../../ink/events/keyboard-event.js'
 import { Box, Text } from '../../ink.js'
-import { isXtermJs } from '../../ink/terminal.js'
-import { useKeybindings } from '../../keybindings/useKeybinding.js'
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
 import type { Message } from '../../types/message.js'
 import { createAbortController } from '../../utils/abortController.js'
@@ -88,7 +80,6 @@ function BtwSideQuestion({ question, context, onDone }: BtwComponentProps) {
   const [cursorOffset, setCursorOffset] = useState(0)
   const scrollRef = useRef<ScrollBoxHandle>(null)
   const abortRef = useRef<AbortController | null>(null)
-  const wheelAccelRef = useRef<WheelAccelState | null>(null)
 
   const size = useModalOrTerminalSize(useTerminalSize())
   const rows = size.rows
@@ -177,46 +168,7 @@ function BtwSideQuestion({ question, context, onDone }: BtwComponentProps) {
   // PgUp/PgDn never scroll past what the user can actually see.
   const page = maxContentHeight
 
-  // Trackpad / mouse wheel. The 'Scroll' context binds wheelup/wheeldown to
-  // scroll:lineUp/lineDown (defaultBindings), and useKeybindings resolves
-  // those against its own context list — so this works without the 'Scroll'
-  // context being registered as active. Runs the same accel curve the
-  // transcript uses, so the feel matches (iTerm2 sends one event per notch,
-  // a trackpad sends a burst).
-  //
-  // Requires the popup to have mouse tracking on (REPL's alt frame) —
-  // otherwise the terminal never sends the wheel sequence at all.
-  const wheelScroll = useCallback((dir: 1 | -1) => {
-    const box = scrollRef.current
-    // Content fits: nothing to scroll, don't touch the position.
-    if (!box || box.getScrollHeight() <= box.getViewportHeight()) return
-    wheelAccelRef.current ??= initWheelAccel(isXtermJs(), readScrollSpeedBase())
-    const step = computeWheelStep(wheelAccelRef.current, dir, performance.now())
-    if (dir < 0) {
-      scrollUp(box, step)
-      return
-    }
-    const max = Math.max(0, box.getScrollHeight() - box.getViewportHeight())
-    // Include pendingDelta — scrollBy accumulates without moving scrollTop,
-    // so getScrollTop() alone is stale inside a burst of wheel events.
-    if (box.getScrollTop() + box.getPendingDelta() + step >= max) {
-      box.scrollToBottom()
-      return
-    }
-    box.scrollBy(step)
-  }, [])
-
-  useKeybindings(
-    {
-      'scroll:lineUp': () => {
-        wheelScroll(-1)
-      },
-      'scroll:lineDown': () => {
-        wheelScroll(1)
-      },
-    },
-    { context: 'Scroll' },
-  )
+  // Mouse wheel is wired by <ScrollPane wheel> (shared 'Scroll' engine).
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -273,6 +225,9 @@ function BtwSideQuestion({ question, context, onDone }: BtwComponentProps) {
   return (
     <Box
       flexDirection="column"
+      flexGrow={1}
+      flexShrink={1}
+      minHeight={0}
       paddingLeft={2}
       marginTop={1}
       tabIndex={0}
@@ -285,8 +240,10 @@ function BtwSideQuestion({ question, context, onDone }: BtwComponentProps) {
         </Text>
         <Text dimColor={true}>{question}</Text>
       </Box>
-      <Box marginTop={1} marginLeft={2} maxHeight={maxContentHeight}>
-        <ScrollBox ref={scrollRef} flexDirection="column" flexGrow={1}>
+      {/* Transcript viewport — shared bounded-scroll recipe (see ScrollPane).
+          Explicit height, because flexGrow/minHeight/maxHeight all failed to
+          bound this once the transcript grew past one screen. */}
+      <ScrollPane height={maxContentHeight} scrollRef={scrollRef} marginTop={1} marginLeft={2}>
           {transcript.map((turn, i) =>
             turn.role === 'user' ? (
               <Box key={i} marginTop={1}>
@@ -297,7 +254,7 @@ function BtwSideQuestion({ question, context, onDone }: BtwComponentProps) {
               </Box>
             ) : (
               <Box key={i} marginTop={1}>
-                <Markdown>{turn.text}</Markdown>
+                <Markdown forceWidth={columns}>{turn.text}</Markdown>
               </Box>
             ),
           )}
@@ -312,8 +269,7 @@ function BtwSideQuestion({ question, context, onDone }: BtwComponentProps) {
               <Text color="error">{error}</Text>
             </Box>
           )}
-        </ScrollBox>
-      </Box>
+      </ScrollPane>
       {inputFocused && (
         <Box marginTop={1} flexDirection="row">
           <Text color="warning" bold={true}>

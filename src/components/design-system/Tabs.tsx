@@ -1,8 +1,8 @@
 import { c as _c } from "react/compiler-runtime";
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { useIsInsideModal, useModalScrollRef } from '../../context/modalContext.js';
+import { useIsInsideModal, useModalOrTerminalSize, useModalScrollRef } from '../../context/modalContext.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
-import ScrollBox from '../../ink/components/ScrollBox.js';
+import { ScrollPane } from '../ScrollPane.js';
 import type { KeyboardEvent } from '../../ink/events/keyboard-event.js';
 import { stringWidth } from '../../ink/stringWidth.js';
 import { Box, Text } from '../../ink.js';
@@ -64,7 +64,7 @@ const TabsContext = createContext<TabsContextValue>({
   registerOptIn: () => () => {}
 });
 export function Tabs(t0) {
-  const $ = _c(25);
+  const $ = _c(26);
   const {
     title,
     color,
@@ -83,7 +83,8 @@ export function Tabs(t0) {
   const initialHeaderFocused = t1 === undefined ? true : t1;
   const navFromContent = t2 === undefined ? false : t2;
   const {
-    columns: terminalWidth
+    columns: terminalWidth,
+    rows: terminalRows
   } = useTerminalSize();
   const tabs = children.map(_temp);
   const defaultTabIndex = defaultTab ? tabs.findIndex(tab => defaultTab === tab[0]) : 0;
@@ -92,6 +93,13 @@ export function Tabs(t0) {
   const controlledTabIndex = isControlled ? tabs.findIndex(tab_0 => tab_0[0] === controlledSelectedTab) : -1;
   const selectedTabIndex = isControlled ? controlledTabIndex !== -1 ? controlledTabIndex : 0 : internalSelectedTab;
   const modalScrollRef = useModalScrollRef();
+  // Explicit viewport height for the in-modal content scroller — see ScrollPane
+  // (a numeric height is the only recipe that bounds reliably). `rows` is the
+  // modal pane's budget; subtract the tab header row + its top margin + 1 slack.
+  const modalContentHeight = Math.max(
+    3,
+    useModalOrTerminalSize({ columns: terminalWidth, rows: terminalRows }).rows - 3,
+  );
   const [headerFocused, setHeaderFocused] = useState(initialHeaderFocused);
   let t3;
   if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
@@ -206,8 +214,8 @@ export function Tabs(t0) {
       return <Text key={id} backgroundColor={hasColorCursor ? color : undefined} color={hasColorCursor ? "inverseText" : undefined} inverse={isCurrent && !hasColorCursor} bold={isCurrent}>{" "}{title_0}{" "}</Text>;
     })}{spacerWidth > 0 && <Text>{" ".repeat(spacerWidth)}</Text>}</Box>;
   let t17;
-  if ($[11] !== children || $[12] !== contentHeight || $[13] !== contentWidth || $[14] !== hidden || $[15] !== modalScrollRef || $[16] !== selectedTabIndex) {
-    t17 = modalScrollRef ? <Box width={contentWidth} marginTop={hidden ? 0 : 1} flexShrink={0}><ScrollBox key={selectedTabIndex} ref={modalScrollRef} flexDirection="column" flexShrink={0}>{children}</ScrollBox></Box> : <Box width={contentWidth} marginTop={hidden ? 0 : 1} height={contentHeight} overflowY={contentHeight !== undefined ? "hidden" : undefined}>{children}</Box>;
+  if ($[11] !== children || $[12] !== contentHeight || $[13] !== contentWidth || $[14] !== hidden || $[15] !== modalScrollRef || $[16] !== selectedTabIndex || $[25] !== modalContentHeight) {
+    t17 = modalScrollRef ? <ScrollPane key={selectedTabIndex} height={modalContentHeight} scrollRef={modalScrollRef} wheel={false} width={contentWidth} marginTop={hidden ? 0 : 1}>{children}</ScrollPane> : <Box width={contentWidth} marginTop={hidden ? 0 : 1} height={contentHeight} overflowY={contentHeight !== undefined ? "hidden" : undefined}>{children}</Box>;
     $[11] = children;
     $[12] = contentHeight;
     $[13] = contentWidth;
@@ -215,6 +223,7 @@ export function Tabs(t0) {
     $[15] = modalScrollRef;
     $[16] = selectedTabIndex;
     $[17] = t17;
+    $[25] = modalContentHeight;
   } else {
     t17 = $[17];
   }
