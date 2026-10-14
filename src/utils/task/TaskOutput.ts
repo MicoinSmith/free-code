@@ -123,15 +123,21 @@ export class TaskOutput {
             entry.#onProgress('', '', entry.#totalLines, bytesTotal, false)
             return
           }
+          // Normalize carriage returns to newlines. Progress UIs that redraw a
+          // single line with `\r` (docker pull, curl, apt, …) emit no `\n`, so
+          // the whole tail used to collapse into ONE giant "line": the last-5/
+          // last-100 slices returned the entire blob and no progress surfaced.
+          // Treating `\r` as a line break exposes each redraw as its own line.
+          const text = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
           // Count all newlines in the tail and capture slice points for the
           // last 5 and last 100 lines. Uncapped so extrapolation stays accurate
           // for dense output (short lines → >100 newlines in 4KB).
-          let pos = content.length
+          let pos = text.length
           let n5 = 0
           let n100 = 0
           let lineCount = 0
           while (pos > 0) {
-            pos = content.lastIndexOf('\n', pos - 1)
+            pos = text.lastIndexOf('\n', pos - 1)
             lineCount++
             if (lineCount === 5) n5 = pos <= 0 ? 0 : pos + 1
             if (lineCount === 100) n100 = pos <= 0 ? 0 : pos + 1
@@ -149,8 +155,8 @@ export class TaskOutput {
           entry.#totalLines = totalLines
           entry.#totalBytes = bytesTotal
           entry.#onProgress(
-            content.slice(n5),
-            content.slice(n100),
+            text.slice(n5),
+            text.slice(n100),
             totalLines,
             bytesTotal,
             bytesRead < bytesTotal,
